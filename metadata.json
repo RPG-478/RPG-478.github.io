@@ -1,0 +1,5 @@
+{
+  "name": "Archy - AI Architecture Diagram Generator",
+  "description": "An intelligent tool that transforms natural language descriptions into professional architecture diagrams using Gemini AI and Mermaid.js.",
+  "requestFramePermissions": []
+}
