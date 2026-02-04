@@ -33,7 +33,7 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          VITE_BASE: /${{ github.event.repository.name }}/
+          VITE_BASE: ${{ endsWith(github.event.repository.name, '.github.io') && '/' || format('/{0}/', github.event.repository.name) }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || secrets.GEMINIAPI }}
 
       - name: Upload artifact
