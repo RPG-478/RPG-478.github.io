@@ -69,9 +69,9 @@ const HelpModal: React.FC<HelpModalProps> = ({ onClose, onTryPrompt }) => {
                   <FileArchive className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-slate-800">プロジェクト解析 (ZIP/MD)</p>
+                  <p className="text-sm font-bold text-slate-800">プロジェクト解析 (ZIP/ドキュメント)</p>
                   <p className="text-xs text-slate-500 mt-1">
-                    ZIPファイルやMarkdownをアップロードすると、AIが中身をスキャンして全体のアーキテクチャやドキュメント構造を自動で図解します。
+                    ZIPファイルやドキュメントをアップロードすると、AIが中身をスキャンして全体のアーキテクチャやドキュメント構造を自動で図解します。
                   </p>
                 </div>
               </div>
