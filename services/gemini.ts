@@ -1,35 +1,40 @@
-import { supabase } from "./supabase";
+import { GoogleGenAI } from "@google/genai";
+import { SYSTEM_PROMPT } from "../constants";
 
-export interface GenerateResult {
-  text: string;
-  remaining?: number | null;
-  plan?: string | null;
-}
-
-export async function* generateDiagramCodeStream(prompt: string, currentCode?: string): AsyncGenerator<GenerateResult> {
+export async function* generateDiagramCodeStream(prompt: string, currentCode?: string): AsyncGenerator<string> {
+  // Use process.env.API_KEY directly as per guidelines
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
   const userMessage = currentCode 
     ? `現在の図のコード:\n${currentCode}\n\nユーザーの要望: ${prompt}`
     : prompt;
 
   try {
-    const { data, error } = await supabase.functions.invoke('generate-diagram', {
-      body: { prompt: userMessage }
+    // Upgrade to gemini-3-pro-preview for coding and complex tasks
+    const response = await ai.models.generateContentStream({
+      model: 'gemini-3-pro-preview',
+      contents: userMessage,
+      config: {
+        systemInstruction: SYSTEM_PROMPT,
+        temperature: 0.4,
+        thinkingConfig: { thinkingBudget: 1024 },
+      },
     });
 
-    if (error) {
-      throw new Error(error.message || 'AI呼び出しに失敗しました。');
+    let fullText = "";
+    // Iterating directly over the response object as it is the async iterable
+    for await (const chunk of response) {
+      const chunkText = chunk.text || "";
+      fullText += chunkText;
+      
+      // Clean markdown on the fly if it starts appearing
+      let cleaned = fullText
+        .replace(/```mermaid/g, '')
+        .replace(/```/g, '')
+        .trim();
+        
+      yield cleaned;
     }
-
-    const text = (data?.text || '')
-      .replace(/```mermaid/g, '')
-      .replace(/```/g, '')
-      .trim();
-
-    yield {
-      text,
-      remaining: data?.remaining ?? null,
-      plan: data?.plan ?? null
-    };
   } catch (error) {
     console.error("Gemini API Error:", error);
     throw new Error("図の作成中に通信エラーが発生しました。");

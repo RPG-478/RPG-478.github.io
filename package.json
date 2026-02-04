@@ -14,8 +14,7 @@
     "lucide-react": "0.474.0",
     "@google/genai": "1.39.0",
     "mermaid": "11.4.0",
-    "jszip": "3.10.1",
-    "@supabase/supabase-js": "^2.49.1"
+    "jszip": "3.10.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
