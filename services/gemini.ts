@@ -17,7 +17,7 @@ export async function* generateDiagramCodeStream(prompt: string, currentCode?: s
       config: {
         systemInstruction: SYSTEM_PROMPT,
         temperature: 0.4,
-        thinkingConfig: { thinkingBudget: 0 },
+        thinkingConfig: { thinkingBudget: 1024 },
       },
     });
 
