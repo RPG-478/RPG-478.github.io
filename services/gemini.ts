@@ -13,7 +13,7 @@ export async function* generateDiagramCodeStream(prompt: string, currentCode?: s
 
   try {
     const { data, error } = await supabase.functions.invoke('generate-diagram', {
-      body: { prompt: userMessage },
+      body: { prompt: userMessage, token: accessToken },
       headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
     });
 

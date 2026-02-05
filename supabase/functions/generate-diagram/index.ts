@@ -42,8 +42,24 @@ Deno.serve(async (req) => {
     }
 
     const authHeader = req.headers.get("Authorization") ?? "";
+    const { prompt, token } = await req.json();
+    if (!prompt || typeof prompt !== "string") {
+      return new Response(JSON.stringify({ error: "Prompt is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const bearer = authHeader || (token ? `Bearer ${token}` : "");
+    if (!bearer) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
+      global: { headers: { Authorization: bearer } },
     });
     const admin = createClient(supabaseUrl, serviceRoleKey);
 
@@ -51,14 +67,6 @@ Deno.serve(async (req) => {
     if (authError || !authData?.user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const { prompt } = await req.json();
-    if (!prompt || typeof prompt !== "string") {
-      return new Response(JSON.stringify({ error: "Prompt is required" }), {
-        status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
