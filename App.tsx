@@ -402,6 +402,76 @@ const App: React.FC = () => {
 
   const activeProject = history.find(h => h.id === activeId);
 
+  if (!authReady) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-slate-50 text-slate-700">
+        <div className="flex items-center gap-3 text-sm font-bold">
+          <Loader2 className="w-5 h-5 animate-spin" /> 読み込み中...
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="min-h-screen w-full bg-slate-50 text-slate-900">
+        <header className="h-16 bg-white border-b border-slate-200 px-4 md:px-6 flex items-center justify-between">
+          <div className="flex items-center gap-2 font-bold text-slate-800">
+            <Sparkles className="w-5 h-5 text-blue-600" /> Archy
+          </div>
+          <button
+            onClick={() => supabase.auth.signInWithOAuth({ provider: 'google' })}
+            className="px-3 py-2 text-xs font-bold text-blue-600 hover:text-blue-700"
+          >
+            Googleでログイン
+          </button>
+        </header>
+
+        <main className="max-w-5xl mx-auto px-6 py-16">
+          <div className="text-center mb-12">
+            <div className="w-16 h-16 mx-auto bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-xl shadow-blue-200">
+              <Sparkles className="w-8 h-8" />
+            </div>
+            <h1 className="mt-6 text-3xl sm:text-4xl font-black text-slate-900">
+              プロンプトだけで、図解を一気に。
+            </h1>
+            <p className="mt-4 text-slate-500 font-medium">
+              アーキテクチャ図・フロー・ガント・マインドマップを即生成。
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+              <div className="text-blue-600 mb-3"><Workflow className="w-6 h-6" /></div>
+              <h3 className="font-bold text-slate-800">テンプレートで即作成</h3>
+              <p className="text-sm text-slate-500 mt-2">よくある構成図をワンクリックで開始。</p>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+              <div className="text-blue-600 mb-3"><FileArchive className="w-6 h-6" /></div>
+              <h3 className="font-bold text-slate-800">ZIP/ドキュメント解析</h3>
+              <p className="text-sm text-slate-500 mt-2">プロジェクトの構造を自動で可視化。</p>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+              <div className="text-blue-600 mb-3"><Code2 className="w-6 h-6" /></div>
+              <h3 className="font-bold text-slate-800">編集と書き出し</h3>
+              <p className="text-sm text-slate-500 mt-2">Mermaid を直接編集・SVG保存。</p>
+            </div>
+          </div>
+
+          <div className="mt-12 text-center">
+            <button
+              onClick={() => supabase.auth.signInWithOAuth({ provider: 'google' })}
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black shadow-lg shadow-blue-200"
+            >
+              Googleでログインして始める
+            </button>
+            <p className="mt-3 text-xs text-slate-400">無料枠内で試せます。上限に達したら停止します。</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen w-full bg-slate-50 text-slate-900 overflow-hidden selection:bg-blue-100 font-sans">
       <Sidebar 
