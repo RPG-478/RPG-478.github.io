@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef, useTransition } from 'react';
 import { Send, Download, Copy, RefreshCw, Edit2, Check, Share2, AlertCircle, Layout, Workflow, Code2, Trash2, HelpCircle, Menu, X, ArrowLeft, ArrowDownRight, ArrowRight, Zap, Sparkles, Box, Type, Paperclip, FileText, FileArchive, Loader2, BrainCircuit, Calendar, Clock, History as HistoryIcon, Save, RotateCcw } from 'lucide-react';
 import { generateDiagramCodeStream } from './services/gemini';
+import { supabase } from './services/supabase';
+import type { Session } from '@supabase/supabase-js';
 import { AppState, DiagramHistory, DiagramVersion, DiagramTemplate } from './types';
 import { SNIPPETS } from './constants';
 import MermaidRenderer from './components/MermaidRenderer';
@@ -27,7 +29,9 @@ const App: React.FC = () => {
   const [copyFeedback, setCopyFeedback] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'edit' | 'versions'>('edit');
-  const [apiKeyError, setApiKeyError] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<{ plan: string; free_quota_remaining: number | null } | null>(null);
+  const [authReady, setAuthReady] = useState(false);
 
   // File Upload State
   const [attachedFile, setAttachedFile] = useState<{ name: string; content: string } | null>(null);
@@ -51,11 +55,23 @@ const App: React.FC = () => {
       }, 500);
     }
 
-    // API Key Check
-    if (!process.env.API_KEY) {
-      console.warn("API_KEY is missing in process.env");
-      setApiKeyError(true);
-    }
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setAuthReady(true);
+      if (data.session?.user?.id) {
+        fetchProfile(data.session.user.id);
+      }
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+      setAuthReady(true);
+      if (newSession?.user?.id) {
+        fetchProfile(newSession.user.id);
+      } else {
+        setProfile(null);
+      }
+    });
 
     const saved = localStorage.getItem('archy-history-v2');
     if (saved) {
@@ -65,7 +81,27 @@ const App: React.FC = () => {
         console.error("Failed to load history", e);
       }
     }
+    return () => authListener.subscription.unsubscribe();
   }, []);
+
+  const fetchProfile = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('plan, free_quota_remaining')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.warn('Failed to load profile', error.message);
+      setProfile(null);
+      return;
+    }
+
+    setProfile({
+      plan: data?.plan || 'free',
+      free_quota_remaining: data?.free_quota_remaining ?? null
+    });
+  };
 
   useEffect(() => {
     localStorage.setItem('archy-history-v2', JSON.stringify(history));
@@ -75,8 +111,8 @@ const App: React.FC = () => {
     const finalPrompt = targetPrompt || prompt;
     if (!finalPrompt.trim() && !attachedFile) return;
 
-    if (apiKeyError) {
-      setErrorMessage("APIキーが設定されていないため、AIによる生成ができません。");
+    if (!session) {
+      setErrorMessage('生成するにはログインが必要です。');
       return;
     }
 
@@ -98,8 +134,16 @@ const App: React.FC = () => {
       let lastCode = currentCode;
 
       for await (const partialCode of stream) {
-        setCurrentCode(partialCode);
-        lastCode = partialCode;
+        if (partialCode.text) {
+          setCurrentCode(partialCode.text);
+          lastCode = partialCode.text;
+        }
+        if (typeof partialCode.remaining === 'number') {
+          setProfile(prev => prev ? { ...prev, free_quota_remaining: partialCode.remaining } : prev);
+        }
+        if (partialCode.plan) {
+          setProfile(prev => prev ? { ...prev, plan: partialCode.plan } : prev);
+        }
       }
       
       const newVersion: DiagramVersion = {
@@ -383,9 +427,14 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
-            {apiKeyError && (
-              <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 border border-red-100 rounded-lg text-[10px] font-black uppercase tracking-widest mr-2">
-                <AlertCircle size={12} /> Key Missing
+            {!session && authReady && (
+              <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-100 rounded-lg text-[10px] font-black uppercase tracking-widest mr-2">
+                <AlertCircle size={12} /> Login Required
+              </div>
+            )}
+            {session && profile && (
+              <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-600 border border-slate-200 rounded-lg text-[10px] font-black uppercase tracking-widest mr-2">
+                {profile.plan === 'pro' ? 'Pro' : `Free ${profile.free_quota_remaining ?? 0}`}
               </div>
             )}
             {currentCode && (
@@ -404,6 +453,23 @@ const App: React.FC = () => {
                   <Share2 className="w-4 h-4" /><span className="hidden sm:inline">共有</span>
                 </button>
               </>
+            )}
+            {authReady && (
+              session ? (
+                <button
+                  onClick={() => supabase.auth.signOut()}
+                  className="px-3 py-2 text-xs font-bold text-slate-600 hover:text-slate-900"
+                >
+                  ログアウト
+                </button>
+              ) : (
+                <button
+                  onClick={() => supabase.auth.signInWithOAuth({ provider: 'google' })}
+                  className="px-3 py-2 text-xs font-bold text-blue-600 hover:text-blue-700"
+                >
+                  Googleでログイン
+                </button>
+              )
             )}
           </div>
         </header>
