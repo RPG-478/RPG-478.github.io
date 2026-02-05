@@ -130,7 +130,7 @@ const App: React.FC = () => {
         combinedPrompt = `File Analysis (${attachedFile.name}):\n${attachedFile.content.substring(0, 15000)}\n\nUser Request: ${finalPrompt || 'Visualize the core structure'}`;
       }
 
-      const stream = generateDiagramCodeStream(combinedPrompt, currentCode);
+      const stream = generateDiagramCodeStream(combinedPrompt, currentCode, session?.access_token);
       let lastCode = currentCode;
 
       for await (const partialCode of stream) {

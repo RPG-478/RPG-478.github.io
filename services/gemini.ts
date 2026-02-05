@@ -6,14 +6,15 @@ export interface GenerateResult {
   plan?: string | null;
 }
 
-export async function* generateDiagramCodeStream(prompt: string, currentCode?: string): AsyncGenerator<GenerateResult> {
+export async function* generateDiagramCodeStream(prompt: string, currentCode?: string, accessToken?: string): AsyncGenerator<GenerateResult> {
   const userMessage = currentCode 
     ? `現在の図のコード:\n${currentCode}\n\nユーザーの要望: ${prompt}`
     : prompt;
 
   try {
     const { data, error } = await supabase.functions.invoke('generate-diagram', {
-      body: { prompt: userMessage }
+      body: { prompt: userMessage },
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
     });
 
     if (error) {
