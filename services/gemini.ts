@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabaseUrl, supabaseAnonKey } from "./supabase";
 
 export interface GenerateResult {
   text: string;
@@ -12,15 +12,28 @@ export async function* generateDiagramCodeStream(prompt: string, currentCode?: s
     : prompt;
 
   try {
-    const { data, error } = await supabase.functions.invoke('generate-diagram', {
-      body: { prompt: userMessage, token: accessToken },
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-    });
-
-    if (error) {
-      throw new Error(error.message || 'AI呼び出しに失敗しました。');
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Supabase設定が見つかりません。');
+    }
+    if (!accessToken) {
+      throw new Error('認証情報が見つかりません。');
     }
 
+    const response = await fetch(`${supabaseUrl}/functions/v1/generate-diagram`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ prompt: userMessage })
+    });
+
+    if (!response.ok) {
+      throw new Error('Edge Function returned a non-2xx status code');
+    }
+
+    const data = await response.json();
     const text = (data?.text || '')
       .replace(/```mermaid/g, '')
       .replace(/```/g, '')
