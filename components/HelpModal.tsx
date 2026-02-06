@@ -44,15 +44,27 @@ const HelpModal: React.FC<HelpModalProps> = ({ onClose, onTryPrompt }) => {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
-                <p className="text-sm font-bold text-slate-700 mb-2">1. 言葉で指示する</p>
+                <p className="text-sm font-bold text-slate-700 mb-2">1. 入力して生成</p>
                 <p className="text-xs text-slate-500 leading-relaxed">
                   下の入力欄に作りたい図の内容を入力してください。日本語で「〜の構成図」や「〜の流れ」と書くだけでAIが最適な図を作成します。
                 </p>
               </div>
               <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
-                <p className="text-sm font-bold text-slate-700 mb-2">2. 対話して修正する</p>
+                <p className="text-sm font-bold text-slate-700 mb-2">2. 表示 / 編集を切替</p>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  一度作成した図に「DBを追加して」「全体を横向きにして」「色を青系にして」と指示を重ねることで、理想の形に近づけられます。
+                  生成後は「表示」でMermaid図を確認できます。「編集」に切替えるとブロックを直接操作して調整できます。
+                </p>
+              </div>
+              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                <p className="text-sm font-bold text-slate-700 mb-2">3. 追加指示で調整</p>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  「DBを追加して」「全体を横向きにして」など、短い指示を重ねて整えられます。
+                </p>
+              </div>
+              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                <p className="text-sm font-bold text-slate-700 mb-2">4. PNGで保存</p>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  保存ボタンでPNG画像としてダウンロードできます。高解像度・他形式はProで対応予定です。
                 </p>
               </div>
             </div>
@@ -93,7 +105,7 @@ const HelpModal: React.FC<HelpModalProps> = ({ onClose, onTryPrompt }) => {
                 <div>
                   <p className="text-sm font-bold text-slate-800">エクスポートと操作</p>
                   <p className="text-xs text-slate-500 mt-1">
-                    完成した図はSVGで保存可能。プレビューエリアではマウスで自由に拡大・縮小・パン操作ができます。
+                    完成した図はPNGで保存可能。プレビューエリアでは拡大・縮小・パン操作ができます。
                   </p>
                 </div>
               </div>
@@ -126,7 +138,7 @@ const HelpModal: React.FC<HelpModalProps> = ({ onClose, onTryPrompt }) => {
         {/* Footer */}
         <div className="p-6 bg-slate-50 border-t border-slate-100 flex items-center justify-center">
           <p className="text-xs text-slate-400 font-medium">
-            💡 ヒント: エディタで <b>Tab</b> または <b>Enter</b> を押すと、予測候補を確定できます。
+            ヒント: エディタで <b>Tab</b> または <b>Enter</b> を押すと、予測候補を確定できます。
           </p>
         </div>
       </div>

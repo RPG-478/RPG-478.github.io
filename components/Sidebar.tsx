@@ -14,6 +14,7 @@ interface SidebarProps {
   onSelectHistory: (item: DiagramHistory) => void;
   onSelectTemplate: (template: DiagramTemplate) => void;
   onClearHistory: () => void;
+  onDeleteHistory: (id: string) => void;
   onNew: () => void;
   onNewBlank: () => void;
   onShowHelp: () => void;
@@ -27,6 +28,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onSelectHistory, 
   onSelectTemplate, 
   onClearHistory,
+  onDeleteHistory,
   onNew,
   onNewBlank,
   onShowHelp,
@@ -169,23 +171,42 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </p>
               ) : (
                 history.map((item) => (
-                  <button
+                  <div
                     key={item.id}
-                    onClick={() => { onSelectHistory(item); onClose?.(); }}
-                    className={`w-full text-left px-3 py-2 text-sm rounded-lg flex items-center gap-3 group transition-colors truncate ${
+                    className={`w-full px-2 py-1 rounded-lg flex items-center gap-2 group transition-colors ${
                       isDev
-                        ? 'text-slate-400 hover:bg-[#161b22] hover:text-emerald-400'
-                        : 'text-slate-600 hover:bg-slate-50'
+                        ? 'hover:bg-[#161b22]'
+                        : 'hover:bg-slate-50'
                     }`}
                   >
-                    <History className={`w-4 h-4 ${isDev ? 'text-slate-600 group-hover:text-emerald-400' : 'text-slate-400 group-hover:text-blue-500'}`} />
-                    <div className="flex flex-col truncate">
-                      <span className={`truncate font-medium ${isDev ? 'font-mono text-xs' : ''}`}>{item.title}</span>
-                      <span className={`text-[10px] ${isDev ? 'text-slate-600' : 'text-slate-400'}`}>
-                        {item.versions.length} {isDev ? 'commits' : 'バージョン'}
-                      </span>
-                    </div>
-                  </button>
+                    <button
+                      onClick={() => { onSelectHistory(item); onClose?.(); }}
+                      className={`flex-1 text-left px-1 py-1 text-sm rounded-lg flex items-center gap-3 truncate ${
+                        isDev
+                          ? 'text-slate-400 hover:text-emerald-400'
+                          : 'text-slate-600'
+                      }`}
+                    >
+                      <History className={`w-4 h-4 ${isDev ? 'text-slate-600 group-hover:text-emerald-400' : 'text-slate-400 group-hover:text-blue-500'}`} />
+                      <div className="flex flex-col truncate">
+                        <span className={`truncate font-medium ${isDev ? 'font-mono text-xs' : ''}`}>{item.title}</span>
+                        <span className={`text-[10px] ${isDev ? 'text-slate-600' : 'text-slate-400'}`}>
+                          {item.versions.length} {isDev ? 'commits' : 'バージョン'}
+                        </span>
+                      </div>
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onDeleteHistory(item.id); }}
+                      className={`p-2 rounded-lg transition-colors ${
+                        isDev
+                          ? 'text-slate-600 hover:text-red-400 hover:bg-[#1c2128]'
+                          : 'text-slate-400 hover:text-red-500 hover:bg-red-50'
+                      }`}
+                      title={isDev ? 'Delete' : '削除'}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 ))
               )}
             </div>

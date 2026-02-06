@@ -154,7 +154,7 @@ const App: React.FC = () => {
     }
 
     const total = target.length;
-    const steps = Math.min(40, Math.max(10, Math.ceil(total / 50)));
+    const steps = Math.min(70, Math.max(20, Math.ceil(total / 30)));
     const chunk = Math.max(1, Math.ceil(total / steps));
     let index = 0;
 
@@ -171,7 +171,7 @@ const App: React.FC = () => {
           return;
         }
         setCurrentCode(target.slice(0, index));
-      }, 20);
+      }, 35);
     });
   };
 
@@ -471,6 +471,20 @@ ${combinedPrompt}`;
     }
   };
 
+  const handleDeleteHistory = (id: string) => {
+    const target = history.find(h => h.id === id);
+    if (!target) return;
+    if (!window.confirm(`「${target.title}」を削除しますか？`)) return;
+
+    setHistory(prev => prev.filter(h => h.id !== id));
+    if (activeId === id) {
+      setActiveId(null);
+      setCurrentCode('');
+      setAppState('idle');
+      setShowEditor(false);
+    }
+  };
+
   const handleRevertVersion = (version: DiagramVersion) => {
     setCurrentCode(version.code);
     setActiveTab('edit');
@@ -523,19 +537,45 @@ ${combinedPrompt}`;
     setTimeout(() => setCopyFeedback(false), 2000);
   };
 
-  const handleDownloadSVG = () => {
-    const svgElement = document.querySelector('.mermaid svg');
+  const handleDownloadImage = () => {
+    const svgElement = document.querySelector('.mermaid svg') as SVGSVGElement | null;
     if (!svgElement) return;
+
     const svgData = new XMLSerializer().serializeToString(svgElement);
     const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(svgBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `diagram-${Date.now()}.svg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    const img = new Image();
+
+    img.onload = () => {
+      const bbox = svgElement.getBBox();
+      const width = Math.max(1, Math.ceil(bbox.width));
+      const height = Math.max(1, Math.ceil(bbox.height));
+      const canvas = document.createElement('canvas');
+      const scale = 1;
+      canvas.width = width * scale;
+      canvas.height = height * scale;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const pngUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = pngUrl;
+        link.download = `diagram-${Date.now()}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(pngUrl);
+      }, 'image/png');
+
+      URL.revokeObjectURL(url);
+    };
+
+    img.src = url;
   };
 
   const activeProject = history.find(h => h.id === activeId);
@@ -659,6 +699,7 @@ ${combinedPrompt}`;
         onSelectHistory={handleSelectHistory}
         onSelectTemplate={handleSelectTemplate}
         onClearHistory={() => setHistory([])}
+        onDeleteHistory={handleDeleteHistory}
         onNew={handleNew}
         onNewBlank={handleNewBlank}
         isOpen={isSidebarOpen}
@@ -723,7 +764,7 @@ ${combinedPrompt}`;
                   </button>
                 )}
                 <div className={`w-px h-6 mx-0.5 sm:mx-1 ${isDev ? 'bg-[#30363d]' : 'bg-slate-200'}`} />
-                <button onClick={handleDownloadSVG} className={`p-2 rounded-lg transition-colors ${isDev ? 'hover:bg-[#1c2128] text-slate-400' : 'hover:bg-slate-100 text-slate-600'}`} title="保存"><Download className="w-5 h-5" /></button>
+                <button onClick={handleDownloadImage} className={`p-2 rounded-lg transition-colors ${isDev ? 'hover:bg-[#1c2128] text-slate-400' : 'hover:bg-slate-100 text-slate-600'}`} title="PNGで保存"><Download className="w-5 h-5" /></button>
                 {isDev && (
                   <button className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-bold active:scale-95 bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/30">
                     <Share2 className="w-4 h-4" /><span className="hidden sm:inline">Share</span>
