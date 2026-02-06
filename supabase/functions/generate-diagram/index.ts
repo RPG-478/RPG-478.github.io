@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
 
     const authHeader = req.headers.get("Authorization") ?? "";
     const body = await req.json();
-    const { prompt, token } = body;
+    const { prompt, token, isAutoFix } = body;
     if (!prompt || typeof prompt !== "string") {
       return new Response(JSON.stringify({ error: "Prompt is required" }), {
         status: 400,
@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
     const plan = profile?.plan ?? "free";
     let remaining = profile?.free_quota_remaining ?? 0;
 
-    if (plan !== "pro" && remaining <= 0) {
+    if (!isAutoFix && plan !== "pro" && remaining <= 0) {
       return new Response(JSON.stringify({ error: "Free quota exceeded", plan, remaining }), {
         status: 402,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -148,7 +148,7 @@ Deno.serve(async (req) => {
     const result = await response.json();
     const text = result?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text || "").join("") ?? "";
 
-    if (plan !== "pro") {
+    if (!isAutoFix && plan !== "pro") {
       remaining = Math.max(0, (remaining ?? 0) - 1);
       await admin
         .from("profiles")

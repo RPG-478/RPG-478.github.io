@@ -4,6 +4,7 @@ import { AlertCircle, CheckCircle2, Loader2, RotateCcw, ZoomIn, ZoomOut, Info, C
 
 interface MermaidRendererProps {
   chart: string;
+  onAutoFix?: (errorMessage: string) => void;
 }
 
 // Global initialization
@@ -31,7 +32,7 @@ try {
   console.error("Mermaid initialization failed:", e);
 }
 
-const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart }) => {
+const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, onAutoFix }) => {
   // Use deferred value to keep the main thread (typing) snappy
   const deferredChart = useDeferredValue(chart);
   
@@ -169,7 +170,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart }) => {
            if (e.ctrlKey || e.metaKey) {
              const delta = e.deltaY > 0 ? 0.9 : 1.1;
              setScale(s => Math.min(Math.max(s * delta, 0.1), 10));
-             e.preventDefault();
+             if (e.cancelable) e.preventDefault();
            }
          }}>
       
@@ -208,13 +209,21 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart }) => {
 
       {/* Syntax Error Hint */}
       {errorDetails && syntaxStatus === 'invalid' && (
-        <div className="absolute bottom-6 left-6 right-6 flex items-center justify-center z-30 pointer-events-none animate-in slide-in-from-bottom-4">
+        <div className="absolute top-6 left-6 right-6 flex items-center justify-center z-30 pointer-events-none animate-in slide-in-from-top-4">
           <div className="max-w-md w-full bg-slate-900/90 backdrop-blur-md text-white rounded-2xl p-4 shadow-2xl pointer-events-auto flex items-start gap-3 border border-slate-700">
             <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
             <div className="flex-1 overflow-hidden">
               <p className="text-xs font-bold leading-relaxed truncate">{errorDetails.message}</p>
               <p className="text-[10px] text-slate-400 mt-1 uppercase font-black tracking-widest">修正が必要です</p>
             </div>
+            {onAutoFix && (
+              <button
+                onClick={() => onAutoFix(errorDetails.message)}
+                className="shrink-0 px-3 py-1.5 bg-white text-slate-900 text-[10px] font-black rounded-full shadow hover:shadow-lg transition-all"
+              >
+                無料で修正
+              </button>
+            )}
           </div>
         </div>
       )}

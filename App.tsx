@@ -107,7 +107,7 @@ const App: React.FC = () => {
     localStorage.setItem('archy-history-v2', JSON.stringify(history));
   }, [history]);
 
-  const handleGenerate = async (targetPrompt?: string) => {
+  const handleGenerate = async (targetPrompt?: string, options?: { isAutoFix?: boolean }) => {
     const finalPrompt = targetPrompt || prompt;
     if (!finalPrompt.trim() && !attachedFile) return;
 
@@ -130,7 +130,7 @@ const App: React.FC = () => {
         combinedPrompt = `File Analysis (${attachedFile.name}):\n${attachedFile.content.substring(0, 15000)}\n\nUser Request: ${finalPrompt || 'Visualize the core structure'}`;
       }
 
-      const stream = generateDiagramCodeStream(combinedPrompt, currentCode, session?.access_token);
+      const stream = generateDiagramCodeStream(combinedPrompt, currentCode, session?.access_token, options);
       let lastCode = currentCode;
 
       for await (const partialCode of stream) {
@@ -178,6 +178,13 @@ const App: React.FC = () => {
       setAppState('error');
       setErrorMessage(err.message || 'エラーが発生しました');
     }
+  };
+
+  const handleAutoFix = (sourceError?: string) => {
+    if (!currentCode) return;
+    const errorText = sourceError || errorMessage || '構文エラーが発生しました';
+    const fixPrompt = `以下のMermaidコードにエラーがあります。エラーメッセージを参考に、正しいMermaidコードのみを出力してください。\n\nエラーメッセージ:\n${errorText}\n\n対象コード:\n${currentCode}`;
+    handleGenerate(fixPrompt, { isAutoFix: true });
   };
 
   const saveManualSnapshot = () => {
@@ -486,6 +493,20 @@ const App: React.FC = () => {
         onShowHelp={() => setShowHelp(true)}
       />
 
+      {errorMessage && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-full w-fit flex items-center gap-2 shadow-xl animate-in fade-in">
+          <AlertCircle size={14} /> {errorMessage}
+          {currentCode && (
+            <button
+              onClick={() => handleAutoFix()}
+              className="ml-2 px-2.5 py-1 bg-white text-red-600 text-[10px] font-black rounded-full shadow hover:shadow-lg transition-all"
+            >
+              無料で修正
+            </button>
+          )}
+        </div>
+      )}
+
       <main className="flex-1 flex flex-col h-full overflow-hidden relative">
         <header className="h-16 bg-white border-b border-slate-200 px-4 md:px-6 flex items-center justify-between z-10 shrink-0">
           <div className="flex items-center gap-3 overflow-hidden">
@@ -581,7 +602,7 @@ const App: React.FC = () => {
               </div>
             ) : (
               <div className="w-full h-full pattern-grid relative">
-                <MermaidRenderer chart={currentCode} />
+                <MermaidRenderer chart={currentCode} onAutoFix={handleAutoFix} />
                 {appState === 'generating' && (
                   <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-md px-6 py-3 rounded-full shadow-xl border border-blue-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
                     <RefreshCw className="w-4 h-4 text-blue-600 animate-spin" />
@@ -682,11 +703,6 @@ const App: React.FC = () => {
               </button>
             </div>
           </div>
-          {errorMessage && (
-            <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-full w-fit flex items-center gap-2 shadow-xl animate-in fade-in">
-              <AlertCircle size={14} /> {errorMessage}
-            </div>
-          )}
         </div>
 
         {showHelp && <HelpModal onClose={() => setShowHelp(false)} onTryPrompt={handleGenerate} />}

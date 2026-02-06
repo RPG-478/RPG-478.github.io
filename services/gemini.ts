@@ -6,7 +6,12 @@ export interface GenerateResult {
   plan?: string | null;
 }
 
-export async function* generateDiagramCodeStream(prompt: string, currentCode?: string, accessToken?: string): AsyncGenerator<GenerateResult> {
+export async function* generateDiagramCodeStream(
+  prompt: string,
+  currentCode?: string,
+  accessToken?: string,
+  options?: { isAutoFix?: boolean }
+): AsyncGenerator<GenerateResult> {
   const userMessage = currentCode 
     ? `現在の図のコード:\n${currentCode}\n\nユーザーの要望: ${prompt}`
     : prompt;
@@ -26,7 +31,11 @@ export async function* generateDiagramCodeStream(prompt: string, currentCode?: s
         'apikey': supabaseAnonKey,
         'Authorization': `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({ prompt: userMessage, token: accessToken })
+      body: JSON.stringify({
+        prompt: userMessage,
+        token: accessToken,
+        isAutoFix: options?.isAutoFix ?? false,
+      })
     });
 
     if (!response.ok) {
