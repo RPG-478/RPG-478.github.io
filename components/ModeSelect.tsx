@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Heart, Code2, ArrowRight, Smartphone, Palette, Zap, Terminal, GitBranch, Braces } from 'lucide-react';
+import { Sparkles, Layout, Code2, ArrowRight, Smartphone, Palette, Terminal, GitBranch, Braces } from 'lucide-react';
 
 export type UserMode = 'beginner' | 'developer';
 
@@ -22,7 +22,7 @@ const ModeSelect: React.FC<ModeSelectProps> = ({ onSelect }) => {
       <div className="relative z-10 w-full max-w-3xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8 sm:mb-12">
-          <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto bg-blue-600 text-white rounded-[1.5rem] sm:rounded-[2rem] flex items-center justify-center mb-6 shadow-xl shadow-blue-200 float-gentle">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto bg-blue-600 text-white rounded-[1.5rem] sm:rounded-[2rem] flex items-center justify-center mb-6 shadow-xl shadow-blue-200">
             <Sparkles className="w-8 h-8 sm:w-10 sm:h-10" />
           </div>
           <h1 className="text-2xl sm:text-4xl font-black text-slate-900 mb-3 tracking-tight">
@@ -52,36 +52,36 @@ const ModeSelect: React.FC<ModeSelectProps> = ({ onSelect }) => {
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-200">
-                  <Heart className="w-6 h-6" />
+                  <Layout className="w-6 h-6" />
                 </div>
                 <div>
-                  <h2 className="text-lg sm:text-xl font-black text-slate-900">はじめての方</h2>
-                  <p className="text-xs text-blue-500 font-bold">かんたんモード</p>
+                  <h2 className="text-lg sm:text-xl font-black text-slate-900">かんたんモード</h2>
+                  <p className="text-xs text-blue-500 font-bold">シンプル操作</p>
                 </div>
               </div>
 
               <p className="text-sm text-slate-600 mb-5 leading-relaxed">
-                やさしいガイド付きで、<strong className="text-blue-600">誰でもかんたん</strong>に図が作れます。
-                むずかしいコードは一切不要！
+                ガイドに沿って、<strong className="text-blue-600">迷わず作成</strong>できます。
+                コード入力は不要です。
               </p>
 
               <div className="space-y-2.5 mb-6">
                 <div className="flex items-center gap-2.5 text-xs text-slate-500">
                   <Palette className="w-4 h-4 text-blue-400" />
-                  <span>やさしい色合いのデザイン</span>
+                  <span>見やすい配色</span>
                 </div>
                 <div className="flex items-center gap-2.5 text-xs text-slate-500">
                   <Smartphone className="w-4 h-4 text-purple-400" />
-                  <span>スマホでもサクサク使える</span>
+                  <span>スマホでも使いやすい</span>
                 </div>
                 <div className="flex items-center gap-2.5 text-xs text-slate-500">
                   <Sparkles className="w-4 h-4 text-blue-400" />
-                  <span>テンプレートからワンタップ作成</span>
+                  <span>テンプレートからすぐ作成</span>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 text-sm font-black text-blue-500 group-hover:text-blue-600 transition-colors">
-                このモードで始める <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                このモードで開始 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
           </button>
