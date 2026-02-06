@@ -110,3 +110,26 @@ body {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
+
+/* Developer mode grid background */
+.dev-grid-bg {
+  background-image:
+    linear-gradient(rgba(48, 54, 61, 0.5) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(48, 54, 61, 0.5) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.dev-dots-bg {
+  background-image: radial-gradient(rgba(48, 54, 61, 0.6) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Developer mode terminal cursor blink */
+@keyframes termBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.term-cursor {
+  animation: termBlink 1s step-end infinite;
+}
