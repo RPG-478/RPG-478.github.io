@@ -45,6 +45,7 @@ const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<{ plan: string; free_quota_remaining: number | null } | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
 
   // File Upload State
   const [attachedFile, setAttachedFile] = useState<{ name: string; content: string } | null>(null);
@@ -57,6 +58,7 @@ const App: React.FC = () => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const streamingTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     // Force remove static loader once App is mounted and rendered
@@ -120,6 +122,39 @@ const App: React.FC = () => {
     localStorage.setItem('archy-history-v2', JSON.stringify(history));
   }, [history]);
 
+  const animateCodeReveal = (target: string) => {
+    if (streamingTimerRef.current !== null) {
+      window.clearInterval(streamingTimerRef.current);
+      streamingTimerRef.current = null;
+    }
+
+    if (!target) {
+      setCurrentCode('');
+      return Promise.resolve();
+    }
+
+    const total = target.length;
+    const steps = Math.min(40, Math.max(10, Math.ceil(total / 50)));
+    const chunk = Math.max(1, Math.ceil(total / steps));
+    let index = 0;
+
+    return new Promise<void>((resolve) => {
+      streamingTimerRef.current = window.setInterval(() => {
+        index += chunk;
+        if (index >= total) {
+          setCurrentCode(target);
+          if (streamingTimerRef.current !== null) {
+            window.clearInterval(streamingTimerRef.current);
+            streamingTimerRef.current = null;
+          }
+          resolve();
+          return;
+        }
+        setCurrentCode(target.slice(0, index));
+      }, 20);
+    });
+  };
+
   const handleGenerate = async (
     targetPrompt?: string,
     options?: { isAutoFix?: boolean; isFileAnalysis?: boolean }
@@ -134,6 +169,7 @@ const App: React.FC = () => {
 
     setAppState('generating');
     setErrorMessage('');
+    setIsStreaming(true);
     
     if (window.innerWidth > 768) {
       setShowEditor(true);
@@ -156,7 +192,7 @@ const App: React.FC = () => {
 
       for await (const partialCode of stream) {
         if (partialCode.text) {
-          setCurrentCode(partialCode.text);
+          await animateCodeReveal(partialCode.text);
           lastCode = partialCode.text;
         }
         if (typeof partialCode.remaining === 'number') {
@@ -193,10 +229,12 @@ const App: React.FC = () => {
       }
       
       setAppState('idle');
+      setIsStreaming(false);
       setPrompt('');
       setAttachedFile(null);
     } catch (err: any) {
       setAppState('error');
+      setIsStreaming(false);
       setErrorMessage(err.message || 'エラーが発生しました');
     }
   };
@@ -633,7 +671,7 @@ const App: React.FC = () => {
               </div>
             ) : (
               <div className="w-full h-full pattern-grid relative">
-                <MermaidRenderer chart={currentCode} onAutoFix={handleAutoFix} />
+                <MermaidRenderer chart={currentCode} onAutoFix={handleAutoFix} isStreaming={isStreaming} />
                 {appState === 'generating' && (
                   <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-md px-6 py-3 rounded-full shadow-xl border border-blue-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
                     <RefreshCw className="w-4 h-4 text-blue-600 animate-spin" />

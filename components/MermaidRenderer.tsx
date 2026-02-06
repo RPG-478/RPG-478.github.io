@@ -5,6 +5,7 @@ import { AlertCircle, CheckCircle2, Loader2, RotateCcw, ZoomIn, ZoomOut, Info, C
 interface MermaidRendererProps {
   chart: string;
   onAutoFix?: (errorMessage: string) => void;
+  isStreaming?: boolean;
 }
 
 // Global initialization
@@ -32,7 +33,7 @@ try {
   console.error("Mermaid initialization failed:", e);
 }
 
-const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, onAutoFix }) => {
+const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, onAutoFix, isStreaming = false }) => {
   // Use deferred value to keep the main thread (typing) snappy
   const deferredChart = useDeferredValue(chart);
   
@@ -79,12 +80,14 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, onAutoFix }) =
         if (isMounted && currentRender === renderCounter.current) {
           setSyntaxStatus('invalid');
           // Only show explicit error details if it stays invalid for a while
-          const timer = setTimeout(() => {
-            if (isMounted && currentRender === renderCounter.current) {
-               setErrorDetails({ message: err.message || "構文エラーです" });
-            }
-          }, 1500);
-          return () => clearTimeout(timer);
+          if (!isStreaming) {
+            const timer = setTimeout(() => {
+              if (isMounted && currentRender === renderCounter.current) {
+                 setErrorDetails({ message: err.message || "構文エラーです" });
+              }
+            }, 1500);
+            return () => clearTimeout(timer);
+          }
         }
         return;
       }
@@ -116,7 +119,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, onAutoFix }) =
     performRender();
 
     return () => { isMounted = false; };
-  }, [deferredChart]);
+  }, [deferredChart, isStreaming]);
 
   // Use passive event listeners for better scrolling/panning performance
   const handleMouseDown = (e: React.MouseEvent) => {
