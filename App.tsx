@@ -50,6 +50,7 @@ const App: React.FC = () => {
   const [authReady, setAuthReady] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [visualDiagram, setVisualDiagram] = useState<VisualDiagram>({ nodes: [], edges: [] });
+  const [beginnerView, setBeginnerView] = useState<'mermaid' | 'canvas'>('mermaid');
   const [userMode, setUserMode] = useState<UserMode | null>(() => {
     return localStorage.getItem('archy-user-mode') as UserMode | null;
   });
@@ -70,6 +71,12 @@ const App: React.FC = () => {
   // Derived mode flags - available everywhere including handleGenerate
   const isDev = userMode === 'developer';
   const isBeginner = userMode === 'beginner';
+
+  useEffect(() => {
+    if (userMode === 'beginner') {
+      setBeginnerView('mermaid');
+    }
+  }, [userMode]);
 
   useEffect(() => {
     // Force remove static loader once App is mounted and rendered
@@ -628,6 +635,17 @@ ${combinedPrompt}`;
     localStorage.setItem('archy-user-mode', next);
   };
 
+  const handleBeginnerView = (next: 'mermaid' | 'canvas') => {
+    if (next === 'canvas' && currentCode) {
+      try {
+        setVisualDiagram(parseMermaidToVisual(currentCode));
+      } catch (e) {
+        console.warn('Failed to parse to visual', e);
+      }
+    }
+    setBeginnerView(next);
+  };
+
   return (
     <div className={`flex h-screen w-full overflow-hidden selection:bg-blue-100 font-sans ${
       isDev ? 'bg-[#0d1117] text-slate-200' : 'bg-slate-50 text-slate-900'
@@ -712,6 +730,15 @@ ${combinedPrompt}`;
             {authReady && (
               session ? (
                 <div className="flex items-center gap-1">
+                  {isBeginner && currentCode && (
+                    <button
+                      onClick={() => handleBeginnerView(beginnerView === 'mermaid' ? 'canvas' : 'mermaid')}
+                      className="px-2 py-1.5 text-[10px] font-bold rounded-lg transition-colors text-slate-500 hover:text-blue-600 hover:bg-blue-50"
+                      title="表示切替"
+                    >
+                      {beginnerView === 'mermaid' ? '編集' : '表示'}
+                    </button>
+                  )}
                   <button
                     onClick={handleSwitchMode}
                     className={`px-2 py-1.5 text-[10px] font-bold rounded-lg transition-colors ${
@@ -874,12 +901,16 @@ ${combinedPrompt}`;
             ) : (
               <div className={`w-full h-full relative ${isDev ? 'dev-dots-bg' : ''}`}>
                 {isBeginner ? (
-                  <BeginnerCanvas
-                    diagram={visualDiagram}
-                    onChange={setVisualDiagram}
-                    onCodeSync={(code) => setCurrentCode(code)}
-                    bottomInset={112}
-                  />
+                  beginnerView === 'canvas' ? (
+                    <BeginnerCanvas
+                      diagram={visualDiagram}
+                      onChange={setVisualDiagram}
+                      onCodeSync={(code) => setCurrentCode(code)}
+                      bottomInset={112}
+                    />
+                  ) : (
+                    <MermaidRenderer chart={currentCode} onAutoFix={handleAutoFix} isStreaming={isStreaming} userMode={userMode || 'beginner'} />
+                  )
                 ) : (
                   <MermaidRenderer chart={currentCode} onAutoFix={handleAutoFix} isStreaming={isStreaming} userMode={userMode || 'beginner'} />
                 )}
