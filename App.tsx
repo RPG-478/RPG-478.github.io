@@ -558,18 +558,25 @@ const App: React.FC = () => {
                 </div>
               </div>
             ) : !currentCode ? (
-              <div className="text-center max-w-2xl px-6 py-12 flex flex-col items-center overflow-y-auto h-full justify-center">
-                <div className="w-20 h-20 bg-blue-600 text-white rounded-[2rem] flex items-center justify-center mb-10 shadow-xl shadow-blue-200 rotate-3">
-                  <Sparkles className="w-10 h-10" />
+              <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+                <div className="absolute inset-0 pointer-events-none">
+                  <div className="hero-gradient absolute -top-28 -right-20 w-72 h-72 rounded-full blur-3xl opacity-70 float-slow" />
+                  <div className="hero-gradient-alt absolute -bottom-32 -left-24 w-80 h-80 rounded-full blur-3xl opacity-60 float-slower" />
+                  <div className="hero-dots absolute inset-0 opacity-60" />
                 </div>
-                <h2 className="text-4xl sm:text-5xl font-black text-slate-900 mb-6 tracking-tight leading-tight">
-                  あらゆる図解を、<br/><span className="text-blue-600">プロンプトから。</span>
-                </h2>
-                <p className="text-lg text-slate-500 mb-10 font-medium max-w-md">複雑なアーキテクチャやフローチャートも、AIが数秒で書き上げます。</p>
-                <div className="flex flex-wrap justify-center gap-3">
-                   {['AWS 構成図', 'ログイン認証の流れ', '3層構造のウェブアプリ', '旅行のスケジュール表'].map(hint => (
-                     <button key={hint} onClick={() => setPrompt(hint)} className="px-4 py-2 bg-white border border-slate-200 rounded-full text-sm font-bold text-slate-600 hover:border-blue-400 hover:text-blue-600 transition-all shadow-sm">{hint}</button>
-                   ))}
+                <div className="text-center max-w-2xl px-6 py-12 flex flex-col items-center overflow-y-auto h-full justify-center relative z-10">
+                  <div className="w-20 h-20 bg-blue-600 text-white rounded-[2rem] flex items-center justify-center mb-10 shadow-xl shadow-blue-200 rotate-3 float-gentle">
+                    <Sparkles className="w-10 h-10" />
+                  </div>
+                  <h2 className="text-4xl sm:text-5xl font-black text-slate-900 mb-6 tracking-tight leading-tight">
+                    あらゆる図解を、<br/><span className="text-blue-600">プロンプトから。</span>
+                  </h2>
+                  <p className="text-lg text-slate-500 mb-10 font-medium max-w-md">複雑なアーキテクチャやフローチャートも、AIが数秒で書き上げます。</p>
+                  <div className="flex flex-wrap justify-center gap-3">
+                    {['AWS 構成図', 'ログイン認証の流れ', '3層構造のウェブアプリ', '旅行のスケジュール表'].map(hint => (
+                      <button key={hint} onClick={() => setPrompt(hint)} className="px-4 py-2 bg-white border border-slate-200 rounded-full text-sm font-bold text-slate-600 hover:border-blue-400 hover:text-blue-600 hover:-translate-y-0.5 transition-all shadow-sm">{hint}</button>
+                    ))}
+                  </div>
                 </div>
               </div>
             ) : (

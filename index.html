@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Archy - AI Architecture Diagrams</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script>
         // Robust process shim for browser environment
@@ -17,39 +16,6 @@
             cwd: () => '/'
         };
     </script>
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f8fafc;
-            margin: 0;
-            padding: 0;
-        }
-        .pattern-grid { background-image: radial-gradient(#e2e8f0 1.2px, transparent 1.2px); background-size: 24px 24px; }
-        .startup-loader {
-            position: fixed;
-            inset: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background: white;
-            z-index: 9999;
-            transition: opacity 0.5s ease;
-        }
-        .startup-loader.hidden { opacity: 0; pointer-events: none; }
-        .error-box {
-            display: none;
-            margin-top: 1rem;
-            padding: 1rem;
-            background: #fef2f2;
-            border: 1px solid #fee2e2;
-            border-radius: 0.75rem;
-            color: #dc2626;
-            font-size: 0.875rem;
-            max-width: 80%;
-            text-align: center;
-        }
-    </style>
 <script type="importmap">
 {
   "imports": {

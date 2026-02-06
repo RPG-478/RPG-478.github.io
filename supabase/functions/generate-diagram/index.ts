@@ -29,13 +29,25 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SB_URL") ?? "";
-    const supabaseAnonKey = Deno.env.get("SB_ANON_KEY") ?? "";
-    const serviceRoleKey = Deno.env.get("SB_SERVICE_ROLE_KEY") ?? "";
+    const supabaseUrl = Deno.env.get("SB_URL") ?? Deno.env.get("SUPABASE_URL") ?? "";
+    const supabaseAnonKey = Deno.env.get("SB_ANON_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+    const serviceRoleKey = Deno.env.get("SB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const geminiApiKey = Deno.env.get("GEMINI_API_KEY") ?? "";
 
-    if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey || !geminiApiKey) {
-      return new Response(JSON.stringify({ error: "Missing environment variables" }), {
+    // Debug: log which env vars are present
+    console.log("ENV check - SB_URL:", !!Deno.env.get("SB_URL"), "SUPABASE_URL:", !!Deno.env.get("SUPABASE_URL"));
+    console.log("ENV check - serviceRoleKey present:", !!serviceRoleKey);
+
+    if (!supabaseUrl || !serviceRoleKey || !geminiApiKey) {
+      return new Response(JSON.stringify({ 
+        error: "Missing environment variables",
+        debug: {
+          hasSbUrl: !!Deno.env.get("SB_URL"),
+          hasSupabaseUrl: !!Deno.env.get("SUPABASE_URL"),
+          hasServiceRole: !!serviceRoleKey,
+          hasGemini: !!geminiApiKey
+        }
+      }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -110,7 +122,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const model = plan === "pro" ? "gemini-3-pro-preview" : "gemini-3-flash";
+    const model = plan === "pro" ? "gemini-3-pro-preview" : "gemini-3-flash-preview";
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`, {
       method: "POST",
@@ -118,8 +130,10 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
         contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.4 },
-        thinkingConfig: plan === "pro" ? { thinkingBudget: 1024 } : undefined,
+        generationConfig: {
+          temperature: 1.0,
+          thinkingConfig: { thinkingLevel: "low" },
+        },
       }),
     });
 

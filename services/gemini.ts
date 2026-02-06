@@ -23,14 +23,16 @@ export async function* generateDiagramCodeStream(prompt: string, currentCode?: s
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        apikey: supabaseAnonKey,
-        Authorization: `Bearer ${accessToken}`,
+        'apikey': supabaseAnonKey,
+        'Authorization': `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({ prompt: userMessage })
+      body: JSON.stringify({ prompt: userMessage, token: accessToken })
     });
 
     if (!response.ok) {
-      throw new Error('Edge Function returned a non-2xx status code');
+      const errBody = await response.text();
+      console.error('Edge Function error:', response.status, errBody);
+      throw new Error(`Edge Function error (${response.status}): ${errBody}`);
     }
 
     const data = await response.json();
