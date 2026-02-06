@@ -878,6 +878,7 @@ ${combinedPrompt}`;
                     diagram={visualDiagram}
                     onChange={setVisualDiagram}
                     onCodeSync={(code) => setCurrentCode(code)}
+                    bottomInset={112}
                   />
                 ) : (
                   <MermaidRenderer chart={currentCode} onAutoFix={handleAutoFix} isStreaming={isStreaming} userMode={userMode || 'beginner'} />

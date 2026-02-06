@@ -31,6 +31,8 @@ interface BeginnerCanvasProps {
   diagram: VisualDiagram;
   onChange: (diagram: VisualDiagram) => void;
   onCodeSync: (code: string) => void;
+  /** 下部UI（プロンプトバー等）の高さを考慮した余白 */
+  bottomInset?: number;
 }
 
 // ─── EditModal ───
@@ -150,7 +152,7 @@ const CreateMenu: React.FC<{
 
 // ─── Main Canvas ───
 
-const BeginnerCanvas: React.FC<BeginnerCanvasProps> = ({ diagram, onChange, onCodeSync }) => {
+const BeginnerCanvas: React.FC<BeginnerCanvasProps> = ({ diagram, onChange, onCodeSync, bottomInset = 0 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
 
   // Canvas pan & zoom
@@ -530,6 +532,8 @@ const BeginnerCanvas: React.FC<BeginnerCanvasProps> = ({ diagram, onChange, onCo
 
   // Show action bar when a node is selected and nothing else is open
   const showActionBar = selectedNodeId !== null && !editNode && !connectFrom && !createMenu;
+  const actionBarBottom = bottomInset + 24;
+  const hintBottom = bottomInset + 96;
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-slate-50">
@@ -617,7 +621,10 @@ const BeginnerCanvas: React.FC<BeginnerCanvasProps> = ({ diagram, onChange, onCo
 
       {/* ── Hints ── */}
       {diagram.nodes.length === 0 && !createMenu && (
-        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur rounded-2xl shadow-lg border border-slate-200 px-5 py-3 text-center z-10">
+        <div
+          className="absolute left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur rounded-2xl shadow-lg border border-slate-200 px-5 py-3 text-center z-10"
+          style={{ bottom: hintBottom }}
+        >
           <p className="text-sm font-bold text-slate-600">
             空いてるところを <span className="text-blue-500">長押し</span> してブロックを追加！
           </p>
@@ -626,7 +633,10 @@ const BeginnerCanvas: React.FC<BeginnerCanvasProps> = ({ diagram, onChange, onCo
       )}
 
       {diagram.nodes.length > 0 && diagram.edges.length === 0 && !selectedNodeId && !connectFrom && !editNode && !createMenu && (
-        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur rounded-2xl shadow-lg border border-slate-200 px-5 py-3 text-center z-10 max-w-xs">
+        <div
+          className="absolute left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur rounded-2xl shadow-lg border border-slate-200 px-5 py-3 text-center z-10 max-w-xs"
+          style={{ bottom: hintBottom }}
+        >
           <p className="text-xs font-bold text-slate-500">
             ブロックを <span className="text-blue-500">タップ</span> すると編集メニューが出るよ
           </p>
@@ -635,7 +645,10 @@ const BeginnerCanvas: React.FC<BeginnerCanvasProps> = ({ diagram, onChange, onCo
 
       {/* ── Node Action Bar (bottom center, shown when a node is selected) ── */}
       {showActionBar && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 bg-white rounded-2xl shadow-xl border border-slate-200 px-2 py-2">
+        <div
+          className="absolute left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 bg-white rounded-2xl shadow-xl border border-slate-200 px-2 py-2"
+          style={{ bottom: actionBarBottom }}
+        >
           <button
             onClick={() => {
               const node = diagram.nodes.find(n => n.id === selectedNodeId);
