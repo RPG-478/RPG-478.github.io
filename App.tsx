@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef, useTransition } from 'react';
-import { Send, Download, Copy, RefreshCw, Edit2, Check, Share2, AlertCircle, Layout, Workflow, Code2, Trash2, HelpCircle, Menu, X, ArrowLeft, ArrowDownRight, ArrowRight, Zap, Sparkles, Box, Type, Paperclip, FileText, FileArchive, Loader2, BrainCircuit, Calendar, Clock, History as HistoryIcon, Save, RotateCcw, Database, Milestone, Heart } from 'lucide-react';
+import { Send, Download, Copy, RefreshCw, Edit2, Check, Share2, AlertCircle, Layout, Workflow, Code2, Trash2, HelpCircle, Menu, X, ArrowLeft, ArrowDownRight, ArrowRight, Zap, Sparkles, Box, Type, Paperclip, FileText, FileArchive, Loader2, BrainCircuit, Calendar, Clock, History as HistoryIcon, Save, RotateCcw, Database, Milestone, Heart, ChevronUp, ChevronDown } from 'lucide-react';
 import { generateDiagramCodeStream } from './services/gemini';
 import { supabase } from './services/supabase';
 import type { Session } from '@supabase/supabase-js';
@@ -51,6 +51,7 @@ const App: React.FC = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [visualDiagram, setVisualDiagram] = useState<VisualDiagram>({ nodes: [], edges: [] });
   const [beginnerView, setBeginnerView] = useState<'mermaid' | 'canvas'>('mermaid');
+  const [beginnerInputCollapsed, setBeginnerInputCollapsed] = useState(false);
   const [userMode, setUserMode] = useState<UserMode | null>(() => {
     return localStorage.getItem('archy-user-mode') as UserMode | null;
   });
@@ -75,6 +76,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (userMode === 'beginner') {
       setBeginnerView('mermaid');
+      setBeginnerInputCollapsed(false);
     }
   }, [userMode]);
 
@@ -646,6 +648,8 @@ ${combinedPrompt}`;
     setBeginnerView(next);
   };
 
+  const beginnerBottomInset = isBeginner ? (beginnerInputCollapsed ? 24 : 112) : 0;
+
   return (
     <div className={`flex h-screen w-full overflow-hidden selection:bg-blue-100 font-sans ${
       isDev ? 'bg-[#0d1117] text-slate-200' : 'bg-slate-50 text-slate-900'
@@ -900,13 +904,29 @@ ${combinedPrompt}`;
               </div>
             ) : (
               <div className={`w-full h-full relative ${isDev ? 'dev-dots-bg' : ''}`}>
+                {isBeginner && currentCode && (
+                  <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 bg-white/90 border border-slate-200 rounded-full shadow-lg px-1 py-1">
+                    <button
+                      onClick={() => handleBeginnerView('mermaid')}
+                      className={`px-3 py-1.5 text-[11px] font-bold rounded-full transition-colors ${beginnerView === 'mermaid' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+                    >
+                      表示
+                    </button>
+                    <button
+                      onClick={() => handleBeginnerView('canvas')}
+                      className={`px-3 py-1.5 text-[11px] font-bold rounded-full transition-colors ${beginnerView === 'canvas' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+                    >
+                      編集
+                    </button>
+                  </div>
+                )}
                 {isBeginner ? (
                   beginnerView === 'canvas' ? (
                     <BeginnerCanvas
                       diagram={visualDiagram}
                       onChange={setVisualDiagram}
                       onCodeSync={(code) => setCurrentCode(code)}
-                      bottomInset={112}
+                      bottomInset={beginnerBottomInset}
                     />
                   ) : (
                     <MermaidRenderer chart={currentCode} onAutoFix={handleAutoFix} isStreaming={isStreaming} userMode={userMode || 'beginner'} />
@@ -996,7 +1016,7 @@ ${combinedPrompt}`;
           )}
         </div>
 
-        <div className={`absolute bottom-4 sm:bottom-10 left-1/2 -translate-x-1/2 w-full px-3 sm:px-8 z-30 transition-all ${
+        <div className={`absolute bottom-4 sm:bottom-10 left-1/2 -translate-x-1/2 w-full px-3 sm:px-8 z-30 transition-all pb-[env(safe-area-inset-bottom)] ${
           isDev ? 'max-w-4xl' : 'max-w-2xl'
         } ${showEditor && window.innerWidth < 768 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
           <div className="flex flex-col gap-3">
@@ -1008,11 +1028,21 @@ ${combinedPrompt}`;
                 <button onClick={() => setAttachedFile(null)} className="ml-1 hover:text-red-200"><X size={14} /></button>
               </div>
             )}
-            <div className={`backdrop-blur-2xl flex items-center gap-2 group transition-all ${
-              isDev
-                ? 'bg-[#161b22]/95 rounded-xl sm:rounded-2xl shadow-2xl border border-[#30363d] p-2.5'
-                : 'bg-white/95 rounded-2xl sm:rounded-[2.5rem] shadow-2xl border border-slate-200 p-2'
-            }`}>
+            {isBeginner && beginnerInputCollapsed ? (
+              <div className="flex items-center justify-center gap-2 bg-white/95 rounded-full shadow-xl border border-slate-200 px-3 py-2">
+                <button
+                  onClick={() => setBeginnerInputCollapsed(false)}
+                  className="flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-blue-600"
+                >
+                  <ChevronUp className="w-4 h-4" /> 入力を開く
+                </button>
+              </div>
+            ) : (
+              <div className={`backdrop-blur-2xl flex items-center gap-2 group transition-all ${
+                isDev
+                  ? 'bg-[#161b22]/95 rounded-xl sm:rounded-2xl shadow-2xl border border-[#30363d] p-2.5'
+                  : 'bg-white/95 rounded-2xl sm:rounded-[2.5rem] shadow-2xl border border-slate-200 p-2'
+              }`}>
               {/* File upload - developer only */}
               {isDev && (
                 <>
@@ -1021,6 +1051,15 @@ ${combinedPrompt}`;
                   </button>
                   <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".zip,.md,.txt,.json,.js,.ts,.tsx,.py" />
                 </>
+              )}
+              {isBeginner && (
+                <button
+                  onClick={() => setBeginnerInputCollapsed(true)}
+                  className="ml-1 p-2 text-slate-500 hover:text-blue-600"
+                  title="入力を閉じる"
+                >
+                  <ChevronDown className="w-5 h-5" />
+                </button>
               )}
               <input
                 type="text"
@@ -1045,7 +1084,8 @@ ${combinedPrompt}`;
                 {appState === 'generating' ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                 <span className="hidden xs:inline">{isDev ? (currentCode ? 'Rebuild' : 'Generate') : (currentCode ? '修正' : '作る！')}</span>
               </button>
-            </div>
+              </div>
+            )}
           </div>
         </div>
 
