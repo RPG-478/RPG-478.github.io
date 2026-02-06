@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useEffect, useRef, useTransition } from 'react';
-import { Send, Download, Copy, RefreshCw, Edit2, Check, Share2, AlertCircle, Layout, Workflow, Code2, Trash2, HelpCircle, Menu, X, ArrowLeft, ArrowDownRight, ArrowRight, Zap, Sparkles, Box, Type, Paperclip, FileText, FileArchive, Loader2, BrainCircuit, Calendar, Clock, History as HistoryIcon, Save, RotateCcw } from 'lucide-react';
+import { Send, Download, Copy, RefreshCw, Edit2, Check, Share2, AlertCircle, Layout, Workflow, Code2, Trash2, HelpCircle, Menu, X, ArrowLeft, ArrowDownRight, ArrowRight, Zap, Sparkles, Box, Type, Paperclip, FileText, FileArchive, Loader2, BrainCircuit, Calendar, Clock, History as HistoryIcon, Save, RotateCcw, Database, Milestone, Heart } from 'lucide-react';
 import { generateDiagramCodeStream } from './services/gemini';
 import { supabase } from './services/supabase';
 import type { Session } from '@supabase/supabase-js';
 import { AppState, DiagramHistory, DiagramVersion, DiagramTemplate } from './types';
-import { SNIPPETS } from './constants';
+import { SNIPPETS, DIAGRAM_TEMPLATES } from './constants';
 import MermaidRenderer from './components/MermaidRenderer';
 import Sidebar from './components/Sidebar';
 import HelpModal from './components/HelpModal';
@@ -63,6 +63,10 @@ const App: React.FC = () => {
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const streamingTimerRef = useRef<number | null>(null);
+
+  // Derived mode flags - available everywhere including handleGenerate
+  const isDev = userMode === 'developer';
+  const isBeginner = userMode === 'beginner';
 
   useEffect(() => {
     // Force remove static loader once App is mounted and rendered
@@ -175,7 +179,8 @@ const App: React.FC = () => {
     setErrorMessage('');
     setIsStreaming(true);
     
-    if (window.innerWidth > 768) {
+    // Dev mode: always open editor panel; Beginner mode: never auto-open
+    if (isDev && window.innerWidth > 768) {
       setShowEditor(true);
       setActiveTab('edit');
     }
@@ -563,9 +568,6 @@ const App: React.FC = () => {
     );
   }
 
-  const isDev = userMode === 'developer';
-  const isBeginner = userMode === 'beginner';
-
   const handleSwitchMode = () => {
     const next = isDev ? 'beginner' : 'developer';
     setUserMode(next);
@@ -586,6 +588,7 @@ const App: React.FC = () => {
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         onShowHelp={() => setShowHelp(true)}
+        userMode={userMode || 'beginner'}
       />
 
       {errorMessage && (
@@ -631,21 +634,25 @@ const App: React.FC = () => {
             )}
             {currentCode && (
               <>
-                <div className={`hidden sm:flex items-center rounded-lg p-1 mr-2 ${isDev ? 'bg-[#1c2128]' : 'bg-slate-100'}`}>
-                  <button onClick={toggleLayoutOrientation} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${isDev ? 'text-slate-400 hover:bg-[#30363d] hover:text-white' : 'text-slate-600 hover:bg-white hover:shadow-sm'}`}>
-                    <ArrowDownRight className="w-3 h-3" />{isDev ? 'Rotate' : '向きを切替'}
+                {isDev && (
+                  <div className="hidden sm:flex items-center rounded-lg p-1 mr-2 bg-[#1c2128]">
+                    <button onClick={toggleLayoutOrientation} className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all text-slate-400 hover:bg-[#30363d] hover:text-white">
+                      <ArrowDownRight className="w-3 h-3" />Rotate
+                    </button>
+                  </div>
+                )}
+                {isDev && (
+                  <button onClick={() => setShowEditor(!showEditor)} className={`flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all ${showEditor ? 'bg-emerald-600 text-white' : 'bg-[#1c2128] border border-[#30363d] text-slate-400'}`}>
+                    <Code2 className="w-4 h-4" /><span className="hidden xs:inline">Editor</span>
                   </button>
-                </div>
-                <button onClick={() => setShowEditor(!showEditor)} className={`flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all ${showEditor ? (isDev ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white') : (isDev ? 'bg-[#1c2128] border border-[#30363d] text-slate-400' : 'bg-white border border-slate-200 text-slate-600')}`}>
-                  <Code2 className="w-4 h-4" /><span className="hidden xs:inline">{isDev ? 'Editor' : 'エディタ'}</span>
-                </button>
+                )}
                 <div className={`w-px h-6 mx-0.5 sm:mx-1 ${isDev ? 'bg-[#30363d]' : 'bg-slate-200'}`} />
                 <button onClick={handleDownloadSVG} className={`p-2 rounded-lg transition-colors ${isDev ? 'hover:bg-[#1c2128] text-slate-400' : 'hover:bg-slate-100 text-slate-600'}`} title="保存"><Download className="w-5 h-5" /></button>
-                <button className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-bold active:scale-95 ${
-                  isDev ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/30' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200'
-                }`}>
-                  <Share2 className="w-4 h-4" /><span className="hidden sm:inline">{isDev ? 'Share' : '共有'}</span>
-                </button>
+                {isDev && (
+                  <button className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-bold active:scale-95 bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/30">
+                    <Share2 className="w-4 h-4" /><span className="hidden sm:inline">Share</span>
+                  </button>
+                )}
               </>
             )}
             {authReady && (
@@ -718,57 +725,85 @@ const App: React.FC = () => {
                     <div className="hero-dots absolute inset-0 opacity-60" />
                   </div>
                 )}
-                <div className="text-center max-w-2xl px-6 py-12 flex flex-col items-center overflow-y-auto h-full justify-center relative z-10">
-                  {isDev ? (
-                    <div className="w-20 h-20 bg-[#161b22] border-2 border-emerald-500/40 text-emerald-400 rounded-2xl flex items-center justify-center mb-10 shadow-2xl shadow-emerald-900/20 float-gentle">
-                      <Code2 className="w-10 h-10" />
+
+                {isBeginner ? (
+                  /* Beginner Hero: tappable template cards + how-to guide */
+                  <div className="w-full h-full overflow-y-auto px-4 sm:px-8 py-8 flex flex-col items-center relative z-10">
+                    <div className="w-16 h-16 bg-gradient-to-br from-pink-400 to-purple-500 text-white rounded-[1.5rem] flex items-center justify-center mb-6 shadow-xl shadow-pink-200 rotate-3 float-gentle">
+                      <Heart className="w-8 h-8" />
                     </div>
-                  ) : (
-                    <div className="w-20 h-20 bg-gradient-to-br from-pink-400 to-purple-500 text-white rounded-[2rem] flex items-center justify-center mb-10 shadow-xl shadow-pink-200 rotate-3 float-gentle">
-                      <Sparkles className="w-10 h-10" />
-                    </div>
-                  )}
-                  <h2 className={`text-3xl sm:text-5xl font-black mb-6 tracking-tight leading-tight ${
-                    isDev ? 'text-white font-mono' : 'text-slate-900'
-                  }`}>
-                    {isDev ? (
-                      <>diagram<span className="text-emerald-400">.generate</span>()<span className="animate-pulse text-emerald-400">|</span></>
-                    ) : (
-                      <>やさしく作れる、<br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-500">かわいい図解。</span></>
-                    )}
-                  </h2>
-                  <p className={`text-base sm:text-lg mb-10 font-medium max-w-md ${
-                    isDev ? 'text-slate-500 font-mono text-sm' : 'text-slate-500'
-                  }`}>
-                    {isDev
-                      ? 'Type a prompt or paste Mermaid code. AI handles the rest.'
-                      : '作りたい図のイメージを書くだけ。AIがきれいな図を作ってくれるよ！'
-                    }
-                  </p>
-                  <div className="w-full max-w-2xl overflow-hidden">
-                    <div className="prompt-marquee">
-                      <div className="prompt-track">
-                        {[...PROMPT_TICKER, ...PROMPT_TICKER].map((hint, index) => (
+                    <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mb-2 text-center">
+                      どんな図を作る？ 🎨
+                    </h2>
+                    <p className="text-sm text-slate-500 mb-8 text-center max-w-md">
+                      タップするだけでAIが自動で図を作ってくれるよ！
+                    </p>
+
+                    {/* Template Cards Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 w-full max-w-lg mb-10">
+                      {DIAGRAM_TEMPLATES.map((tpl) => {
+                        const IconMap: Record<string, any> = { Layout, Calendar, Database, BrainCircuit, Clock, Milestone, Workflow };
+                        const IconComponent = IconMap[tpl.icon] || Layout;
+                        return (
                           <button
-                            key={`${hint}-${index}`}
-                            onClick={() => setPrompt(hint)}
-                            className={`px-4 py-2 rounded-full text-sm font-bold hover:-translate-y-0.5 transition-all whitespace-nowrap ${
-                              isDev
-                                ? 'bg-[#161b22] border border-[#30363d] text-slate-400 hover:border-emerald-500 hover:text-emerald-400 shadow-sm'
-                                : 'bg-white border border-pink-100 text-slate-600 hover:border-pink-400 hover:text-pink-600 shadow-sm'
-                            }`}
+                            key={tpl.name}
+                            onClick={() => handleSelectTemplate(tpl)}
+                            className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/80 backdrop-blur border border-pink-100 hover:border-pink-300 hover:shadow-lg hover:-translate-y-1 transition-all active:scale-95 group"
                           >
-                            {hint}
+                            <div className="w-10 h-10 rounded-xl bg-pink-50 text-pink-500 group-hover:bg-pink-100 flex items-center justify-center transition-colors">
+                              <IconComponent className="w-5 h-5" />
+                            </div>
+                            <span className="text-xs font-bold text-slate-700 text-center leading-tight">{tpl.name}</span>
                           </button>
-                        ))}
+                        );
+                      })}
+                    </div>
+
+                    {/* How-to Guide */}
+                    <div className="w-full max-w-md bg-white/60 backdrop-blur rounded-2xl border border-pink-100 p-5 mb-24">
+                      <h3 className="text-sm font-black text-slate-700 mb-3 flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-pink-500" /> はじめての方へ
+                      </h3>
+                      <div className="space-y-2 text-xs text-slate-500">
+                        <p>📌 上のカードをタップすると、AIが自動で図を作ります</p>
+                        <p>💬 下の入力欄に「ログインの流れ」と書いてもOK！</p>
+                        <p>📥 完成した図はダウンロードボタンで保存できます</p>
                       </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  /* Developer Hero: code-style with marquee */
+                  <div className="text-center max-w-2xl px-6 py-12 flex flex-col items-center overflow-y-auto h-full justify-center relative z-10">
+                    <div className="w-20 h-20 bg-[#161b22] border-2 border-emerald-500/40 text-emerald-400 rounded-2xl flex items-center justify-center mb-10 shadow-2xl shadow-emerald-900/20 float-gentle">
+                      <Code2 className="w-10 h-10" />
+                    </div>
+                    <h2 className="text-3xl sm:text-5xl font-black mb-6 tracking-tight leading-tight text-white font-mono">
+                      diagram<span className="text-emerald-400">.generate</span>()<span className="animate-pulse text-emerald-400">|</span>
+                    </h2>
+                    <p className="text-sm mb-10 font-medium max-w-md text-slate-500 font-mono">
+                      Type a prompt or paste Mermaid code. AI handles the rest.
+                    </p>
+                    <div className="w-full max-w-2xl overflow-hidden">
+                      <div className="prompt-marquee">
+                        <div className="prompt-track">
+                          {[...PROMPT_TICKER, ...PROMPT_TICKER].map((hint, index) => (
+                            <button
+                              key={`${hint}-${index}`}
+                              onClick={() => setPrompt(hint)}
+                              className="px-4 py-2 rounded-full text-sm font-bold hover:-translate-y-0.5 transition-all whitespace-nowrap bg-[#161b22] border border-[#30363d] text-slate-400 hover:border-emerald-500 hover:text-emerald-400 shadow-sm"
+                            >
+                              {hint}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className={`w-full h-full relative ${isDev ? 'dev-dots-bg' : 'pattern-grid'}`}>
-                <MermaidRenderer chart={currentCode} onAutoFix={handleAutoFix} isStreaming={isStreaming} />
+                <MermaidRenderer chart={currentCode} onAutoFix={handleAutoFix} isStreaming={isStreaming} userMode={userMode || 'beginner'} />
                 {appState === 'generating' && (
                   <div className={`absolute top-6 left-1/2 -translate-x-1/2 backdrop-blur-md px-6 py-3 rounded-full shadow-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 ${
                     isDev ? 'bg-[#161b22]/90 border border-emerald-500/30' : 'bg-white/80 border border-pink-200'
@@ -783,87 +818,65 @@ const App: React.FC = () => {
             )}
           </div>
 
-          {showEditor && (
-            <div className={`fixed md:relative inset-y-0 right-0 z-40 w-full md:w-[450px] flex flex-col shadow-2xl transition-transform duration-300 ${
-              isDev ? 'bg-[#0d1117]' : 'bg-slate-900'
-            } ${showEditor ? 'translate-x-0' : 'translate-x-full'}`}>
-              <div className={`p-4 border-b flex flex-col gap-4 shrink-0 ${isDev ? 'bg-[#161b22] border-[#30363d]' : 'bg-slate-900 border-slate-800'}`}>
+          {/* Editor panel - developer mode only */}
+          {isDev && showEditor && (
+            <div className={`fixed md:relative inset-y-0 right-0 z-40 w-full md:w-[450px] flex flex-col shadow-2xl transition-transform duration-300 bg-[#0d1117] ${showEditor ? 'translate-x-0' : 'translate-x-full'}`}>
+              <div className="p-4 border-b flex flex-col gap-4 shrink-0 bg-[#161b22] border-[#30363d]">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <button onClick={() => setShowEditor(false)} className={`p-1 rounded md:hidden ${isDev ? 'hover:bg-[#1c2128] text-slate-400' : 'hover:bg-slate-800 text-slate-400'}`}><ArrowLeft size={18} /></button>
-                    {isDev ? (
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded-full bg-red-500" />
-                        <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                        <div className="w-3 h-3 rounded-full bg-green-500" />
-                        <span className="text-[10px] font-mono text-slate-500 ml-2">mermaid.md</span>
-                      </div>
-                    ) : (
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">コード編集</span>
-                    )}
+                    <button onClick={() => setShowEditor(false)} className="p-1 rounded md:hidden hover:bg-[#1c2128] text-slate-400"><ArrowLeft size={18} /></button>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-red-500" />
+                      <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                      <div className="w-3 h-3 rounded-full bg-green-500" />
+                      <span className="text-[10px] font-mono text-slate-500 ml-2">mermaid.md</span>
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <button onClick={saveManualSnapshot} className="p-1.5 text-slate-500 hover:text-white" title="スナップショットを保存"><Save size={14} /></button>
                     <button onClick={handleCopyCode} className="p-1.5 text-slate-500 hover:text-white">{copyFeedback ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}</button>
                   </div>
                 </div>
-                <div className={`flex p-1 rounded-lg ${isDev ? 'bg-[#0d1117]' : 'bg-slate-800'}`}>
-                  <button onClick={() => setActiveTab('edit')} className={`flex-1 py-1.5 text-xs font-bold rounded-md flex items-center justify-center gap-2 ${activeTab === 'edit' ? (isDev ? 'bg-[#1c2128] text-emerald-400' : 'bg-slate-700 text-white') : 'text-slate-400'}`}>
-                    <Edit2 size={12} /> {isDev ? 'Code' : '編集'}
+                <div className="flex p-1 rounded-lg bg-[#0d1117]">
+                  <button onClick={() => setActiveTab('edit')} className={`flex-1 py-1.5 text-xs font-bold rounded-md flex items-center justify-center gap-2 ${activeTab === 'edit' ? 'bg-[#1c2128] text-emerald-400' : 'text-slate-400'}`}>
+                    <Edit2 size={12} /> Code
                   </button>
-                  <button onClick={() => setActiveTab('versions')} className={`flex-1 py-1.5 text-xs font-bold rounded-md flex items-center justify-center gap-2 ${activeTab === 'versions' ? (isDev ? 'bg-[#1c2128] text-emerald-400' : 'bg-slate-700 text-white') : 'text-slate-400'}`}>
-                    <HistoryIcon size={12} /> {isDev ? 'Commits' : '履歴'} {activeProject?.versions.length ? `(${activeProject.versions.length})` : ''}
+                  <button onClick={() => setActiveTab('versions')} className={`flex-1 py-1.5 text-xs font-bold rounded-md flex items-center justify-center gap-2 ${activeTab === 'versions' ? 'bg-[#1c2128] text-emerald-400' : 'text-slate-400'}`}>
+                    <HistoryIcon size={12} /> Commits {activeProject?.versions.length ? `(${activeProject.versions.length})` : ''}
                   </button>
                 </div>
               </div>
               
               {activeTab === 'edit' ? (
                 <>
-                  {!isDev && (
-                    <div className="border-b border-slate-800 bg-slate-900 p-2 grid grid-cols-4 gap-1 shrink-0">
-                      {SNIPPETS.map(snippet => (
-                        <button key={snippet.id} onClick={() => insertSnippet(snippet)} className="flex flex-col items-center justify-center p-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 text-slate-400 transition-colors border border-transparent hover:border-slate-700">
-                          {snippet.icon}<span className="text-[9px] mt-1 font-bold truncate w-full text-center">{snippet.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {isDev && (
-                    <div className="border-b border-[#30363d] bg-[#0d1117] px-4 py-2 flex items-center gap-3 shrink-0">
-                      <span className="text-[10px] font-mono text-slate-600">LN {currentCode.split('\n').length}</span>
-                      <span className="text-[10px] font-mono text-slate-600">| UTF-8</span>
-                      <span className="text-[10px] font-mono text-slate-600">| Mermaid</span>
-                    </div>
-                  )}
+                  <div className="border-b border-[#30363d] bg-[#0d1117] px-4 py-2 flex items-center gap-3 shrink-0">
+                    <span className="text-[10px] font-mono text-slate-600">LN {currentCode.split('\n').length}</span>
+                    <span className="text-[10px] font-mono text-slate-600">| UTF-8</span>
+                    <span className="text-[10px] font-mono text-slate-600">| Mermaid</span>
+                  </div>
                   <textarea
                     ref={textareaRef}
                     value={currentCode}
                     onChange={handleTextareaChange}
                     onKeyDown={handleKeyDown}
                     spellCheck={false}
-                    className={`flex-1 font-mono text-sm p-6 sm:p-8 resize-none focus:outline-none ${
-                      isDev
-                        ? 'bg-[#0d1117] text-emerald-100 caret-emerald-400 selection:bg-emerald-900/40'
-                        : 'bg-slate-900 text-blue-100'
-                    }`}
-                    placeholder={isDev ? '// Start typing Mermaid code...' : 'コードを直接編集できます...'}
+                    className="flex-1 font-mono text-sm p-6 sm:p-8 resize-none focus:outline-none bg-[#0d1117] text-emerald-100 caret-emerald-400 selection:bg-emerald-900/40"
+                    placeholder="// Start typing Mermaid code..."
                   />
                 </>
               ) : (
-                <div className={`flex-1 overflow-y-auto p-4 space-y-3 ${isDev ? 'bg-[#0d1117]' : 'bg-slate-900'}`}>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#0d1117]">
                   {activeProject?.versions.map((v, i) => (
-                    <div key={v.id} className={`p-4 rounded-xl border ${isDev ? 'border-[#30363d] bg-[#161b22]' : 'border-slate-800 bg-slate-800/40'}`}>
+                    <div key={v.id} className="p-4 rounded-xl border border-[#30363d] bg-[#161b22]">
                       <div className="flex items-center justify-between mb-2">
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${isDev ? 'text-emerald-400 font-mono' : 'text-blue-400'}`}>
-                          {i === 0 ? (isDev ? 'HEAD' : '最新版') : `${isDev ? 'commit' : 'Version'} ${activeProject.versions.length - i}`}
+                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 font-mono">
+                          {i === 0 ? 'HEAD' : `commit ${activeProject.versions.length - i}`}
                         </span>
                         <span className="text-[10px] text-slate-500 font-bold">{new Date(v.timestamp).toLocaleString()}</span>
                       </div>
-                      <p className={`text-xs font-medium mb-3 line-clamp-2 ${isDev ? 'text-slate-400 font-mono' : 'text-slate-300'}`}>{v.prompt}</p>
-                      <button onClick={() => handleRevertVersion(v)} className={`w-full py-2 text-white text-[11px] font-black rounded-lg transition-all flex items-center justify-center gap-2 ${
-                        isDev ? 'bg-[#1c2128] hover:bg-emerald-600 border border-[#30363d]' : 'bg-slate-700 hover:bg-blue-600'
-                      }`}>
-                        <RotateCcw size={12} /> {isDev ? 'Revert' : '戻す'}
+                      <p className="text-xs font-medium mb-3 line-clamp-2 text-slate-400 font-mono">{v.prompt}</p>
+                      <button onClick={() => handleRevertVersion(v)} className="w-full py-2 text-white text-[11px] font-black rounded-lg transition-all flex items-center justify-center gap-2 bg-[#1c2128] hover:bg-emerald-600 border border-[#30363d]">
+                        <RotateCcw size={12} /> Revert
                       </button>
                     </div>
                   ))}
@@ -873,26 +886,32 @@ const App: React.FC = () => {
           )}
         </div>
 
-        <div className={`absolute bottom-6 sm:bottom-10 left-1/2 -translate-x-1/2 w-full max-w-4xl px-4 sm:px-8 z-30 transition-all ${showEditor && window.innerWidth < 768 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+        <div className={`absolute bottom-4 sm:bottom-10 left-1/2 -translate-x-1/2 w-full px-3 sm:px-8 z-30 transition-all ${
+          isDev ? 'max-w-4xl' : 'max-w-2xl'
+        } ${showEditor && window.innerWidth < 768 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
           <div className="flex flex-col gap-3">
-            {attachedFile && (
-              <div className={`flex items-center gap-2 self-start text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg ${
-                isDev ? 'bg-emerald-600' : 'bg-pink-500'
-              }`}>
+            {/* File attachment badge - developer only */}
+            {isDev && attachedFile && (
+              <div className="flex items-center gap-2 self-start text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg bg-emerald-600">
                 {attachedFile.name.endsWith('.zip') ? <FileArchive size={14} /> : <FileText size={14} />}
                 <span>{attachedFile.name}</span>
                 <button onClick={() => setAttachedFile(null)} className="ml-1 hover:text-red-200"><X size={14} /></button>
               </div>
             )}
-            <div className={`backdrop-blur-2xl p-2.5 flex items-center gap-2 group transition-all ${
+            <div className={`backdrop-blur-2xl flex items-center gap-2 group transition-all ${
               isDev
-                ? 'bg-[#161b22]/95 rounded-xl sm:rounded-2xl shadow-2xl border border-[#30363d]'
-                : 'bg-white/95 rounded-2xl sm:rounded-[2.5rem] shadow-2xl border border-pink-100'
+                ? 'bg-[#161b22]/95 rounded-xl sm:rounded-2xl shadow-2xl border border-[#30363d] p-2.5'
+                : 'bg-white/95 rounded-2xl sm:rounded-[2.5rem] shadow-2xl border border-pink-100 p-2'
             }`}>
-              <button onClick={() => fileInputRef.current?.click()} disabled={isFileLoading || appState === 'generating'} className={`ml-2 p-3 ${isDev ? 'text-slate-500 hover:text-emerald-400' : 'text-slate-400 hover:text-pink-500'}`}>
-                {isFileLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Paperclip className="w-6 h-6" />}
-              </button>
-              <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".zip,.md,.txt,.json,.js,.ts,.tsx,.py" />
+              {/* File upload - developer only */}
+              {isDev && (
+                <>
+                  <button onClick={() => fileInputRef.current?.click()} disabled={isFileLoading || appState === 'generating'} className="ml-2 p-3 text-slate-500 hover:text-emerald-400">
+                    {isFileLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Paperclip className="w-6 h-6" />}
+                  </button>
+                  <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".zip,.md,.txt,.json,.js,.ts,.tsx,.py" />
+                </>
+              )}
               <input
                 type="text"
                 value={prompt}
@@ -900,10 +919,12 @@ const App: React.FC = () => {
                 onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
                 placeholder={isDev
                   ? (attachedFile ? 'Describe how to visualize...' : 'Describe the diagram you want to create...')
-                  : (attachedFile ? '解析内容をどう図解する？' : '作りたい図のイメージを書いてね ✨')
+                  : '「ログインの流れ」みたいに書いてね ✨'
                 }
-                className={`flex-1 bg-transparent py-3 sm:py-5 px-2 sm:px-4 focus:outline-none font-bold text-base sm:text-xl ${
-                  isDev ? 'text-slate-200 placeholder:text-slate-600 font-mono text-sm sm:text-base' : 'text-slate-800 placeholder:text-slate-400'
+                className={`flex-1 bg-transparent focus:outline-none font-bold ${
+                  isDev
+                    ? 'py-3 sm:py-5 px-2 sm:px-4 text-slate-200 placeholder:text-slate-600 font-mono text-sm sm:text-base'
+                    : 'py-3 sm:py-4 px-3 sm:px-4 text-slate-800 placeholder:text-slate-400 text-sm sm:text-lg'
                 }`}
               />
               <button onClick={() => handleGenerate()} disabled={(!prompt.trim() && !attachedFile) || appState === 'generating'} className={`px-6 sm:px-10 py-3 sm:py-5 text-white font-black flex items-center gap-2 disabled:opacity-50 ${

@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState, useDeferredValue, useMemo } from 'react';
 import mermaid from 'mermaid';
 import { AlertCircle, CheckCircle2, Loader2, RotateCcw, ZoomIn, ZoomOut, Info, Code, Maximize2 } from 'lucide-react';
+import type { UserMode } from './ModeSelect';
 
 interface MermaidRendererProps {
   chart: string;
   onAutoFix?: (errorMessage: string) => void;
   isStreaming?: boolean;
+  userMode?: UserMode;
 }
 
 // Global initialization
@@ -33,7 +35,8 @@ try {
   console.error("Mermaid initialization failed:", e);
 }
 
-const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, onAutoFix, isStreaming = false }) => {
+const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, onAutoFix, isStreaming = false, userMode = 'beginner' }) => {
+  const isDev = userMode === 'developer';
   // Use deferred value to keep the main thread (typing) snappy
   const deferredChart = useDeferredValue(chart);
   
@@ -164,7 +167,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, onAutoFix, isS
   const isGhosted = syntaxStatus === 'invalid' && lastValidSvg !== '';
 
   return (
-    <div className="relative w-full h-full overflow-hidden cursor-grab active:cursor-grabbing select-none bg-slate-50/50"
+    <div className={`relative w-full h-full overflow-hidden cursor-grab active:cursor-grabbing select-none ${isDev ? 'bg-[#0d1117]' : 'bg-slate-50/50'}`}
          onMouseDown={handleMouseDown}
          onMouseMove={handleMouseMove}
          onMouseUp={handleMouseUp}
@@ -180,9 +183,13 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, onAutoFix, isS
       {/* Live Status Overlay */}
       <div className="absolute top-4 left-4 z-20 flex flex-col gap-2">
         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border shadow-sm backdrop-blur-md transition-all duration-300 ${
-          syntaxStatus === 'valid' ? 'bg-green-50/80 border-green-200 text-green-700' :
-          syntaxStatus === 'invalid' ? 'bg-amber-50/80 border-amber-200 text-amber-700' :
-          'bg-white/80 border-slate-200 text-slate-500'
+          isDev
+            ? (syntaxStatus === 'valid' ? 'bg-emerald-950/80 border-emerald-800 text-emerald-400' :
+               syntaxStatus === 'invalid' ? 'bg-amber-950/80 border-amber-800 text-amber-400' :
+               'bg-slate-900/80 border-slate-700 text-slate-500')
+            : (syntaxStatus === 'valid' ? 'bg-green-50/80 border-green-200 text-green-700' :
+               syntaxStatus === 'invalid' ? 'bg-amber-50/80 border-amber-200 text-amber-700' :
+               'bg-white/80 border-slate-200 text-slate-500')
         }`}>
           {isRendering ? (
             <Loader2 className="w-3 h-3 animate-spin" />
@@ -193,20 +200,25 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, onAutoFix, isS
           ) : (
             <Info className="w-3 h-3" />
           )}
-          <span className="text-[10px] font-black uppercase tracking-widest">
-            {isRendering ? 'Processing' : syntaxStatus === 'valid' ? 'Synced' : syntaxStatus === 'invalid' ? 'Editing...' : 'Waiting'}
+          <span className={`text-[10px] font-black uppercase tracking-widest ${isDev ? 'font-mono' : ''}`}>
+            {isDev
+              ? (isRendering ? 'Rendering' : syntaxStatus === 'valid' ? 'Synced' : syntaxStatus === 'invalid' ? 'Parse error' : 'Idle')
+              : (isRendering ? '処理中...' : syntaxStatus === 'valid' ? '完成 ✓' : syntaxStatus === 'invalid' ? '修正中...' : '待機中')
+            }
           </span>
         </div>
       </div>
 
       {/* Optimized Control Panel */}
       <div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
-        <div className="flex flex-col bg-white/90 backdrop-blur border border-slate-200 rounded-xl shadow-lg p-1">
-          <button onClick={() => setScale(s => Math.min(s * 1.2, 10))} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors" title="拡大"><ZoomIn size={18} /></button>
-          <button onClick={() => setScale(s => Math.max(s / 1.2, 0.1))} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors" title="縮小"><ZoomOut size={18} /></button>
-          <div className="h-px bg-slate-200 mx-1" />
-          <button onClick={autoFit} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors" title="全体表示"><Maximize2 size={18} /></button>
-          <button onClick={resetZoom} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors" title="リセット"><RotateCcw size={18} /></button>
+        <div className={`flex flex-col backdrop-blur rounded-xl shadow-lg p-1 ${
+          isDev ? 'bg-slate-900/90 border border-[#30363d]' : 'bg-white/90 border border-slate-200'
+        }`}>
+          <button onClick={() => setScale(s => Math.min(s * 1.2, 10))} className={`p-2.5 rounded-lg transition-colors ${isDev ? 'hover:bg-slate-800 text-slate-400 hover:text-emerald-400' : 'hover:bg-slate-100 text-slate-600'}`} title="拡大"><ZoomIn size={18} /></button>
+          <button onClick={() => setScale(s => Math.max(s / 1.2, 0.1))} className={`p-2.5 rounded-lg transition-colors ${isDev ? 'hover:bg-slate-800 text-slate-400 hover:text-emerald-400' : 'hover:bg-slate-100 text-slate-600'}`} title="縮小"><ZoomOut size={18} /></button>
+          <div className={`h-px mx-1 ${isDev ? 'bg-[#30363d]' : 'bg-slate-200'}`} />
+          <button onClick={autoFit} className={`p-2.5 rounded-lg transition-colors ${isDev ? 'hover:bg-slate-800 text-slate-400 hover:text-emerald-400' : 'hover:bg-slate-100 text-slate-600'}`} title="全体表示"><Maximize2 size={18} /></button>
+          <button onClick={resetZoom} className={`p-2.5 rounded-lg transition-colors ${isDev ? 'hover:bg-slate-800 text-slate-400 hover:text-emerald-400' : 'hover:bg-slate-100 text-slate-600'}`} title="リセット"><RotateCcw size={18} /></button>
         </div>
       </div>
 
@@ -217,14 +229,18 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, onAutoFix, isS
             <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
             <div className="flex-1 overflow-hidden">
               <p className="text-xs font-bold leading-relaxed truncate">{errorDetails.message}</p>
-              <p className="text-[10px] text-slate-400 mt-1 uppercase font-black tracking-widest">修正が必要です</p>
+              <p className={`text-[10px] text-slate-400 mt-1 uppercase font-black tracking-widest ${isDev ? 'font-mono' : ''}`}>
+                {isDev ? 'Fix required' : '修正が必要です'}
+              </p>
             </div>
             {onAutoFix && (
               <button
                 onClick={() => onAutoFix(errorDetails.message)}
-                className="shrink-0 px-3 py-1.5 bg-white text-slate-900 text-[10px] font-black rounded-full shadow hover:shadow-lg transition-all"
+                className={`shrink-0 px-3 py-1.5 text-[10px] font-black rounded-full shadow hover:shadow-lg transition-all ${
+                  isDev ? 'bg-emerald-500 text-white' : 'bg-white text-slate-900'
+                }`}
               >
-                無料で修正
+                {isDev ? 'Auto-fix' : '無料で修正'}
               </button>
             )}
           </div>
@@ -249,12 +265,14 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, onAutoFix, isS
 
       {/* Empty State */}
       {!displaySvg && !isRendering && (
-        <div className="absolute inset-0 flex items-center justify-center text-slate-300">
+        <div className={`absolute inset-0 flex items-center justify-center ${isDev ? 'text-slate-600' : 'text-slate-300'}`}>
            <div className="flex flex-col items-center gap-4 animate-pulse">
-              <div className="w-16 h-16 border-4 border-dashed border-slate-200 rounded-full flex items-center justify-center">
+              <div className={`w-16 h-16 border-4 border-dashed rounded-full flex items-center justify-center ${isDev ? 'border-[#30363d]' : 'border-slate-200'}`}>
                 <Code className="w-6 h-6" />
               </div>
-              <p className="text-xs font-black uppercase tracking-widest">No diagram code</p>
+              <p className={`text-xs font-black uppercase tracking-widest ${isDev ? 'font-mono' : ''}`}>
+                {isDev ? 'No diagram code' : 'ダイアグラムを作ろう'}
+              </p>
            </div>
         </div>
       )}
