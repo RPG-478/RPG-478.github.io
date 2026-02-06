@@ -194,6 +194,21 @@ const App: React.FC = () => {
         combinedPrompt = `File Analysis (${attachedFile.name}):\n${attachedFile.content.substring(0, 15000)}\n\nUser Request: ${finalPrompt || 'Visualize the core structure'}`;
       }
 
+      // Beginner mode: force simple graph TD flowchart only
+      if (isBeginner) {
+        combinedPrompt = `【最重要ルール】以下を必ず守ること：
+- 必ず "graph TD" で始まるフローチャートのみ出力する
+- ノードIDは A, B, C, D... のようにアルファベット1文字にする
+- ノードの書式は A[ラベル] か A{ラベル} か A((ラベル)) のみ
+- 接続は --> か -->|ラベル| のみ使用
+- subgraph, style, classDef, class は絶対に使わない
+- mindmap, sequenceDiagram, gantt, erDiagram, timeline, pie, journey は絶対に使わない
+- ノードは最大12個まで
+- ラベルは日本語で短く（8文字以内）
+
+${combinedPrompt}`;
+      }
+
       const stream = generateDiagramCodeStream(
         combinedPrompt,
         currentCode,
@@ -767,9 +782,9 @@ const App: React.FC = () => {
                           <button
                             key={tpl.name}
                             onClick={() => handleSelectTemplate(tpl)}
-                            className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/80 backdrop-blur border border-pink-100 hover:border-pink-300 hover:shadow-lg hover:-translate-y-1 transition-all active:scale-95 group"
+                            className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/80 backdrop-blur border border-slate-200 hover:border-blue-300 hover:shadow-lg hover:-translate-y-1 transition-all active:scale-95 group"
                           >
-                            <div className="w-10 h-10 rounded-xl bg-pink-50 text-pink-500 group-hover:bg-pink-100 flex items-center justify-center transition-colors">
+                            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-500 group-hover:bg-blue-100 flex items-center justify-center transition-colors">
                               <IconComponent className="w-5 h-5" />
                             </div>
                             <span className="text-xs font-bold text-slate-700 text-center leading-tight">{tpl.name}</span>
@@ -787,23 +802,22 @@ const App: React.FC = () => {
                         setActiveId(null);
                         setAppState('idle');
                       }}
-                      className="mb-8 px-6 py-3 bg-white border-2 border-dashed border-pink-300 hover:border-pink-400 rounded-2xl text-sm font-black text-pink-500 active:scale-95 transition-all flex items-center gap-2"
+                      className="mb-8 px-6 py-3 bg-white border-2 border-dashed border-blue-300 hover:border-blue-400 rounded-2xl text-sm font-black text-blue-500 active:scale-95 transition-all flex items-center gap-2"
                     >
                       ✏️ 自分で1から図を作る
                     </button>
 
                     {/* How-to Guide */}
-                    <div className="w-full max-w-md bg-white/60 backdrop-blur rounded-2xl border border-pink-100 p-5 mb-24">
+                    <div className="w-full max-w-md bg-white/60 backdrop-blur rounded-2xl border border-slate-200 p-5 mb-24">
                       <h3 className="text-sm font-black text-slate-700 mb-3 flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-pink-500" /> 使い方
+                        <Sparkles className="w-4 h-4 text-blue-500" /> 使い方
                       </h3>
                       <div className="space-y-2.5 text-xs text-slate-500">
                         <p>🎨 上のカードをタップ → AIが自動で図を作るよ</p>
                         <p>✏️ 「自分で作る」→ ブロックを置いて自由に図が作れる</p>
-                        <p>👆 ブロックを <b className="text-pink-500">1秒押し</b> → 名前や色を変更</p>
-                        <p>☝️ ブロックを <b className="text-pink-500">スライド</b> → 場所を移動</p>
-                        <p>👆 ブロックを <b className="text-pink-500">3秒押し</b> → メニューが出る（消す・つなぐ）</p>
-                        <p>👆 何もないところを <b className="text-pink-500">長押し</b> → 新しいブロック追加</p>
+                        <p>👆 ブロックを <b className="text-blue-500">タップ</b> → メニューが出る（編集・つなぐ・削除）</p>
+                        <p>☝️ ブロックを <b className="text-blue-500">スライド</b> → 場所を移動</p>
+                        <p>👆 何もないところを <b className="text-blue-500">長押し</b> → 新しいブロック追加</p>
                       </div>
                     </div>
                   </div>
