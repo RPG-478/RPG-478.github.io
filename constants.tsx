@@ -41,6 +41,40 @@ export const DIAGRAM_TEMPLATES: DiagramTemplate[] = [
   }
 ];
 
+/** ビギナー向けテンプレート（ビジネス用語なし・身近な内容） */
+export const BEGINNER_TEMPLATES: DiagramTemplate[] = [
+  {
+    name: '料理の手順 🍳',
+    prompt: 'カレーライスの作り方をフローチャートにして。材料を切る→炒める→煮込む→ルーを入れる→盛り付け。',
+    icon: 'Workflow'
+  },
+  {
+    name: '歴史の人物関係 📜',
+    prompt: '戦国時代の織田信長・豊臣秀吉・徳川家康の関係図。誰が誰に仕えた、誰が後を継いだ、など。',
+    icon: 'Users'
+  },
+  {
+    name: '1日のスケジュール ⏰',
+    prompt: '学生の1日の流れ。起床→朝食→通学→授業→昼食→部活→帰宅→夕食→勉強→就寝のタイムライン。',
+    icon: 'Clock'
+  },
+  {
+    name: '旅行のプラン ✈️',
+    prompt: '京都日帰り旅行の計画。朝に出発→嵐山→昼食→金閣寺→買い物→夕食→帰宅の流れ図。',
+    icon: 'Milestone'
+  },
+  {
+    name: '自己紹介マップ 🌟',
+    prompt: '自己紹介のマインドマップ。中心に名前、そこから趣味・好きな食べ物・得意なこと・将来の夢の4つ。',
+    icon: 'BrainCircuit'
+  },
+  {
+    name: '部活の組織図 🏫',
+    prompt: '部活動の組織図。顧問の先生→部長→副部長→各パートリーダー→部員の構造。',
+    icon: 'Layout'
+  },
+];
+
 export const SNIPPETS = [
   { id: 'start-flow', label: 'フローチャート', code: 'graph TD\n  ', icon: <Layout size={16} />, category: 'starter' },
   { id: 'start-seq', label: 'やり取りの図', code: 'sequenceDiagram\n  ', icon: <Repeat size={16} />, category: 'starter' },

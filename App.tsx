@@ -3,12 +3,14 @@ import { Send, Download, Copy, RefreshCw, Edit2, Check, Share2, AlertCircle, Lay
 import { generateDiagramCodeStream } from './services/gemini';
 import { supabase } from './services/supabase';
 import type { Session } from '@supabase/supabase-js';
-import { AppState, DiagramHistory, DiagramVersion, DiagramTemplate } from './types';
-import { SNIPPETS, DIAGRAM_TEMPLATES } from './constants';
+import { AppState, DiagramHistory, DiagramVersion, DiagramTemplate, VisualDiagram } from './types';
+import { SNIPPETS, DIAGRAM_TEMPLATES, BEGINNER_TEMPLATES } from './constants';
 import MermaidRenderer from './components/MermaidRenderer';
+import BeginnerCanvas from './components/BeginnerCanvas';
 import Sidebar from './components/Sidebar';
 import HelpModal from './components/HelpModal';
 import ModeSelect, { UserMode } from './components/ModeSelect';
+import { parseMermaidToVisual, visualToMermaid, createEmptyDiagram } from './services/mermaidBridge';
 import JSZip from 'jszip';
 
 const MERMAID_KEYWORDS = [
@@ -47,6 +49,7 @@ const App: React.FC = () => {
   const [profile, setProfile] = useState<{ plan: string; free_quota_remaining: number | null } | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [visualDiagram, setVisualDiagram] = useState<VisualDiagram>({ nodes: [], edges: [] });
   const [userMode, setUserMode] = useState<UserMode | null>(() => {
     return localStorage.getItem('archy-user-mode') as UserMode | null;
   });
@@ -241,6 +244,15 @@ const App: React.FC = () => {
       setIsStreaming(false);
       setPrompt('');
       setAttachedFile(null);
+      
+      // Sync visual diagram for beginner canvas
+      if (isBeginner && lastCode) {
+        try {
+          setVisualDiagram(parseMermaidToVisual(lastCode));
+        } catch (e) {
+          console.warn('Failed to parse to visual', e);
+        }
+      }
     } catch (err: any) {
       setAppState('error');
       setIsStreaming(false);
@@ -407,13 +419,20 @@ const App: React.FC = () => {
     const latest = item.versions[0];
     setCurrentCode(latest.code);
     setActiveId(item.id);
-    setShowEditor(window.innerWidth > 768);
+    setShowEditor(isDev && window.innerWidth > 768);
     setActiveTab('edit');
+    // Sync visual diagram for beginner
+    if (isBeginner && latest.code) {
+      try { setVisualDiagram(parseMermaidToVisual(latest.code)); } catch {}
+    }
   };
 
   const handleRevertVersion = (version: DiagramVersion) => {
     setCurrentCode(version.code);
     setActiveTab('edit');
+    if (isBeginner && version.code) {
+      try { setVisualDiagram(parseMermaidToVisual(version.code)); } catch {}
+    }
   };
 
   const handleSelectTemplate = (template: DiagramTemplate) => {
@@ -736,12 +755,12 @@ const App: React.FC = () => {
                       どんな図を作る？ 🎨
                     </h2>
                     <p className="text-sm text-slate-500 mb-8 text-center max-w-md">
-                      タップするだけでAIが自動で図を作ってくれるよ！
+                      タップするだけでAIが図を作るよ！あとは指で自由にいじれる ✌️
                     </p>
 
-                    {/* Template Cards Grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 w-full max-w-lg mb-10">
-                      {DIAGRAM_TEMPLATES.map((tpl) => {
+                    {/* Template Cards Grid - beginner-friendly topics */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 w-full max-w-lg mb-6">
+                      {BEGINNER_TEMPLATES.map((tpl) => {
                         const IconMap: Record<string, any> = { Layout, Calendar, Database, BrainCircuit, Clock, Milestone, Workflow };
                         const IconComponent = IconMap[tpl.icon] || Layout;
                         return (
@@ -759,15 +778,32 @@ const App: React.FC = () => {
                       })}
                     </div>
 
+                    {/* "自分で作る" button for beginner canvas */}
+                    <button
+                      onClick={() => {
+                        const empty = createEmptyDiagram();
+                        setVisualDiagram(empty);
+                        setCurrentCode(visualToMermaid(empty));
+                        setActiveId(null);
+                        setAppState('idle');
+                      }}
+                      className="mb-8 px-6 py-3 bg-white border-2 border-dashed border-pink-300 hover:border-pink-400 rounded-2xl text-sm font-black text-pink-500 active:scale-95 transition-all flex items-center gap-2"
+                    >
+                      ✏️ 自分で1から図を作る
+                    </button>
+
                     {/* How-to Guide */}
                     <div className="w-full max-w-md bg-white/60 backdrop-blur rounded-2xl border border-pink-100 p-5 mb-24">
                       <h3 className="text-sm font-black text-slate-700 mb-3 flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-pink-500" /> はじめての方へ
+                        <Sparkles className="w-4 h-4 text-pink-500" /> 使い方
                       </h3>
-                      <div className="space-y-2 text-xs text-slate-500">
-                        <p>📌 上のカードをタップすると、AIが自動で図を作ります</p>
-                        <p>💬 下の入力欄に「ログインの流れ」と書いてもOK！</p>
-                        <p>📥 完成した図はダウンロードボタンで保存できます</p>
+                      <div className="space-y-2.5 text-xs text-slate-500">
+                        <p>🎨 上のカードをタップ → AIが自動で図を作るよ</p>
+                        <p>✏️ 「自分で作る」→ ブロックを置いて自由に図が作れる</p>
+                        <p>👆 ブロックを <b className="text-pink-500">1秒押し</b> → 名前や色を変更</p>
+                        <p>☝️ ブロックを <b className="text-pink-500">スライド</b> → 場所を移動</p>
+                        <p>👆 ブロックを <b className="text-pink-500">3秒押し</b> → メニューが出る（消す・つなぐ）</p>
+                        <p>👆 何もないところを <b className="text-pink-500">長押し</b> → 新しいブロック追加</p>
                       </div>
                     </div>
                   </div>
@@ -802,10 +838,18 @@ const App: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div className={`w-full h-full relative ${isDev ? 'dev-dots-bg' : 'pattern-grid'}`}>
-                <MermaidRenderer chart={currentCode} onAutoFix={handleAutoFix} isStreaming={isStreaming} userMode={userMode || 'beginner'} />
+              <div className={`w-full h-full relative ${isDev ? 'dev-dots-bg' : ''}`}>
+                {isBeginner ? (
+                  <BeginnerCanvas
+                    diagram={visualDiagram}
+                    onChange={setVisualDiagram}
+                    onCodeSync={(code) => setCurrentCode(code)}
+                  />
+                ) : (
+                  <MermaidRenderer chart={currentCode} onAutoFix={handleAutoFix} isStreaming={isStreaming} userMode={userMode || 'beginner'} />
+                )}
                 {appState === 'generating' && (
-                  <div className={`absolute top-6 left-1/2 -translate-x-1/2 backdrop-blur-md px-6 py-3 rounded-full shadow-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 ${
+                  <div className={`absolute top-6 left-1/2 -translate-x-1/2 backdrop-blur-md px-6 py-3 rounded-full shadow-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 z-50 ${
                     isDev ? 'bg-[#161b22]/90 border border-emerald-500/30' : 'bg-white/80 border border-pink-200'
                   }`}>
                     <RefreshCw className={`w-4 h-4 animate-spin ${isDev ? 'text-emerald-400' : 'text-pink-500'}`} />
@@ -919,7 +963,7 @@ const App: React.FC = () => {
                 onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
                 placeholder={isDev
                   ? (attachedFile ? 'Describe how to visualize...' : 'Describe the diagram you want to create...')
-                  : '「ログインの流れ」みたいに書いてね ✨'
+                  : '「カレーの作り方」とか「旅行の計画」みたいに書いてね ✨'
                 }
                 className={`flex-1 bg-transparent focus:outline-none font-bold ${
                   isDev

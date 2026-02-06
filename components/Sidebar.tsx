@@ -1,12 +1,12 @@
 
 import React from 'react';
-import { History, Layout, Plus, Trash2, Github, Server, Cloud, GitBranch, Database, UserCheck, Box, Workflow, FileEdit, X, BrainCircuit, Calendar, Clock, Milestone, HelpCircle, Sparkles, Terminal, Code2 } from 'lucide-react';
+import { History, Layout, Plus, Trash2, Github, Server, Cloud, GitBranch, Database, UserCheck, Box, Workflow, FileEdit, X, BrainCircuit, Calendar, Clock, Milestone, HelpCircle, Sparkles, Terminal, Code2, Users } from 'lucide-react';
 import { DiagramHistory, DiagramTemplate } from '../types';
-import { DIAGRAM_TEMPLATES } from '../constants';
+import { DIAGRAM_TEMPLATES, BEGINNER_TEMPLATES } from '../constants';
 import type { UserMode } from './ModeSelect';
 
 const IconMap: Record<string, any> = {
-  Layout, Server, Cloud, GitBranch, Database, UserCheck, Box, Workflow, BrainCircuit, Calendar, Clock, Milestone
+  Layout, Server, Cloud, GitBranch, Database, UserCheck, Box, Workflow, BrainCircuit, Calendar, Clock, Milestone, Users
 };
 
 interface SidebarProps {
@@ -115,7 +115,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               {isDev ? 'Templates' : 'AI テンプレート'}
             </h2>
             <div className="grid grid-cols-1 gap-1">
-              {DIAGRAM_TEMPLATES.map((tpl) => {
+              {(isDev ? DIAGRAM_TEMPLATES : BEGINNER_TEMPLATES).map((tpl) => {
                 const IconComponent = IconMap[tpl.icon] || Layout;
                 return (
                   <button

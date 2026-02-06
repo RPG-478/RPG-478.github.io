@@ -20,3 +20,27 @@ export interface DiagramTemplate {
   prompt: string;
   icon: string;
 }
+
+// ── Beginner Visual Canvas types ──
+
+export interface VisualNode {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  color: string;
+  shape: 'box' | 'circle' | 'diamond';
+  emoji?: string;
+}
+
+export interface VisualEdge {
+  id: string;
+  from: string;
+  to: string;
+  label?: string;
+}
+
+export interface VisualDiagram {
+  nodes: VisualNode[];
+  edges: VisualEdge[];
+}
