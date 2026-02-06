@@ -189,6 +189,16 @@ const App: React.FC = () => {
     }
     
     try {
+      // Always refresh session before API call to avoid stale token (401)
+      const { data: freshSession } = await supabase.auth.getSession();
+      const accessToken = freshSession.session?.access_token;
+      if (!accessToken) {
+        setErrorMessage('セッションが切れました。再度ログインしてください。');
+        setAppState('error');
+        setIsStreaming(false);
+        return;
+      }
+
       let combinedPrompt = finalPrompt;
       if (attachedFile) {
         combinedPrompt = `File Analysis (${attachedFile.name}):\n${attachedFile.content.substring(0, 15000)}\n\nUser Request: ${finalPrompt || 'Visualize the core structure'}`;
@@ -212,7 +222,7 @@ ${combinedPrompt}`;
       const stream = generateDiagramCodeStream(
         combinedPrompt,
         currentCode,
-        session?.access_token,
+        accessToken,
         { ...options, isFileAnalysis: options?.isFileAnalysis ?? !!attachedFile }
       );
       let lastCode = currentCode;
@@ -554,7 +564,7 @@ ${combinedPrompt}`;
           {/* Step Guide - beginner friendly */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 w-full max-w-2xl mb-12">
             <div className="bg-white/80 backdrop-blur rounded-2xl p-5 text-center border border-slate-100 shadow-sm">
-              <div className="w-10 h-10 mx-auto bg-pink-100 text-pink-600 rounded-xl flex items-center justify-center mb-3 text-lg font-black">1</div>
+              <div className="w-10 h-10 mx-auto bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-3 text-lg font-black">1</div>
               <h3 className="font-bold text-slate-800 text-sm">ログインする</h3>
               <p className="text-xs text-slate-400 mt-1">Googleアカウントで一瞬</p>
             </div>
@@ -610,7 +620,7 @@ ${combinedPrompt}`;
 
   return (
     <div className={`flex h-screen w-full overflow-hidden selection:bg-blue-100 font-sans ${
-      isDev ? 'bg-[#0d1117] text-slate-200' : 'bg-gradient-to-br from-pink-50/40 via-white to-blue-50/40 text-slate-900'
+      isDev ? 'bg-[#0d1117] text-slate-200' : 'bg-slate-50 text-slate-900'
     }`}>
       <Sidebar 
         history={history}
@@ -648,7 +658,7 @@ ${combinedPrompt}`;
             <h1 className={`font-bold truncate max-w-[120px] xs:max-w-[160px] sm:max-w-[300px] flex items-center gap-2 ${isDev ? 'text-slate-300 font-mono text-sm' : 'text-slate-700'}`}>
               {isDev
                 ? <><span className="text-emerald-400">$</span> {activeId ? activeProject?.title : 'archy'}</>
-                : <><Sparkles className="w-5 h-5 text-pink-500 shrink-0" />{activeId ? activeProject?.title : 'Archy'}</>
+                : <><Sparkles className="w-5 h-5 text-blue-500 shrink-0" />{activeId ? activeProject?.title : 'Archy'}</>
               }
             </h1>
           </div>
@@ -661,7 +671,7 @@ ${combinedPrompt}`;
             )}
             {session && profile && (
               <div className={`hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest mr-2 ${
-                isDev ? 'bg-[#1c2128] text-emerald-400 border border-[#30363d]' : 'bg-pink-50 text-pink-600 border border-pink-100'
+                isDev ? 'bg-[#1c2128] text-emerald-400 border border-[#30363d]' : 'bg-blue-50 text-blue-600 border border-blue-100'
               }`}>
                 {profile.plan === 'pro' ? 'Pro' : `Free ${profile.free_quota_remaining ?? 0}`}
               </div>
@@ -695,7 +705,7 @@ ${combinedPrompt}`;
                   <button
                     onClick={handleSwitchMode}
                     className={`px-2 py-1.5 text-[10px] font-bold rounded-lg transition-colors ${
-                      isDev ? 'text-slate-500 hover:text-emerald-400 hover:bg-[#1c2128]' : 'text-slate-400 hover:text-pink-500 hover:bg-pink-50'
+                      isDev ? 'text-slate-500 hover:text-emerald-400 hover:bg-[#1c2128]' : 'text-slate-400 hover:text-blue-500 hover:bg-blue-50'
                     }`}
                     title="モード切替"
                   >
@@ -722,17 +732,17 @@ ${combinedPrompt}`;
 
         <div className="flex-1 relative flex overflow-hidden">
           <div className={`flex-1 flex flex-col items-center justify-center transition-all duration-300 relative overflow-hidden ${
-            isDev ? 'bg-[#0d1117]' : 'bg-gradient-to-br from-pink-50/30 via-white to-blue-50/30'
+            isDev ? 'bg-[#0d1117]' : 'bg-slate-50'
           }`}>
             {appState === 'generating' && !currentCode ? (
               <div className="flex flex-col items-center gap-6 text-center p-6">
                 <div className="relative">
                    <div className={`w-20 h-20 border-4 rounded-full animate-spin ${
-                     isDev ? 'border-[#30363d] border-t-emerald-500' : 'border-pink-100 border-t-pink-500'
+                     isDev ? 'border-[#30363d] border-t-emerald-500' : 'border-slate-200 border-t-blue-500'
                    }`} />
                    {isDev
                      ? <Code2 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 text-emerald-400 animate-pulse" />
-                     : <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 text-pink-500 animate-pulse" />
+                     : <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 text-blue-500 animate-pulse" />
                    }
                 </div>
                 <div className="space-y-1">
@@ -754,8 +764,8 @@ ${combinedPrompt}`;
                   </div>
                 ) : (
                   <div className="absolute inset-0 pointer-events-none">
-                    <div className="absolute -top-28 -right-20 w-72 h-72 bg-pink-200/50 rounded-full blur-3xl float-slow" />
-                    <div className="absolute -bottom-32 -left-24 w-80 h-80 bg-purple-200/40 rounded-full blur-3xl float-slower" />
+                    <div className="absolute -top-28 -right-20 w-72 h-72 bg-blue-100/40 rounded-full blur-3xl float-slow" />
+                    <div className="absolute -bottom-32 -left-24 w-80 h-80 bg-slate-200/40 rounded-full blur-3xl float-slower" />
                     <div className="hero-dots absolute inset-0 opacity-60" />
                   </div>
                 )}
@@ -763,8 +773,8 @@ ${combinedPrompt}`;
                 {isBeginner ? (
                   /* Beginner Hero: tappable template cards + how-to guide */
                   <div className="w-full h-full overflow-y-auto px-4 sm:px-8 py-8 flex flex-col items-center relative z-10">
-                    <div className="w-16 h-16 bg-gradient-to-br from-pink-400 to-purple-500 text-white rounded-[1.5rem] flex items-center justify-center mb-6 shadow-xl shadow-pink-200 rotate-3 float-gentle">
-                      <Heart className="w-8 h-8" />
+                    <div className="w-16 h-16 bg-blue-600 text-white rounded-[1.5rem] flex items-center justify-center mb-6 shadow-xl shadow-blue-200 float-gentle">
+                      <Sparkles className="w-8 h-8" />
                     </div>
                     <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mb-2 text-center">
                       どんな図を作る？ 🎨
@@ -864,9 +874,9 @@ ${combinedPrompt}`;
                 )}
                 {appState === 'generating' && (
                   <div className={`absolute top-6 left-1/2 -translate-x-1/2 backdrop-blur-md px-6 py-3 rounded-full shadow-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 z-50 ${
-                    isDev ? 'bg-[#161b22]/90 border border-emerald-500/30' : 'bg-white/80 border border-pink-200'
+                    isDev ? 'bg-[#161b22]/90 border border-emerald-500/30' : 'bg-white/80 border border-slate-200'
                   }`}>
-                    <RefreshCw className={`w-4 h-4 animate-spin ${isDev ? 'text-emerald-400' : 'text-pink-500'}`} />
+                    <RefreshCw className={`w-4 h-4 animate-spin ${isDev ? 'text-emerald-400' : 'text-blue-500'}`} />
                     <span className={`text-sm font-black tracking-tight ${isDev ? 'text-slate-300 font-mono' : 'text-slate-700'}`}>
                       {isDev ? 'Compiling diagram...' : 'AIが図を作ってるよ...'}
                     </span>
@@ -959,7 +969,7 @@ ${combinedPrompt}`;
             <div className={`backdrop-blur-2xl flex items-center gap-2 group transition-all ${
               isDev
                 ? 'bg-[#161b22]/95 rounded-xl sm:rounded-2xl shadow-2xl border border-[#30363d] p-2.5'
-                : 'bg-white/95 rounded-2xl sm:rounded-[2.5rem] shadow-2xl border border-pink-100 p-2'
+                : 'bg-white/95 rounded-2xl sm:rounded-[2.5rem] shadow-2xl border border-slate-200 p-2'
             }`}>
               {/* File upload - developer only */}
               {isDev && (
@@ -988,7 +998,7 @@ ${combinedPrompt}`;
               <button onClick={() => handleGenerate()} disabled={(!prompt.trim() && !attachedFile) || appState === 'generating'} className={`px-6 sm:px-10 py-3 sm:py-5 text-white font-black flex items-center gap-2 disabled:opacity-50 ${
                 isDev
                   ? 'bg-emerald-600 hover:bg-emerald-500 rounded-lg sm:rounded-xl shadow-lg shadow-emerald-900/30'
-                  : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 rounded-xl sm:rounded-[2rem] shadow-lg shadow-pink-200'
+                  : 'bg-blue-600 hover:bg-blue-700 rounded-xl sm:rounded-[2rem] shadow-lg shadow-blue-200'
               }`}>
                 {appState === 'generating' ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                 <span className="hidden xs:inline">{isDev ? (currentCode ? 'Rebuild' : 'Generate') : (currentCode ? '修正' : '作る！')}</span>

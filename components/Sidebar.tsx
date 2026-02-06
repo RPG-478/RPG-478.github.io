@@ -61,14 +61,14 @@ const Sidebar: React.FC<SidebarProps> = ({
           }`}>
             {isDev 
               ? <><Terminal className="w-5 h-5 text-emerald-400" /><span className="text-emerald-400">$</span> archy</>
-              : <><Sparkles className="w-6 h-6 text-pink-500" /> Archy</>
+              : <><Sparkles className="w-6 h-6 text-blue-500" /> Archy</>
             }
           </h1>
           <div className="flex gap-1">
             <button 
               onClick={onNew}
               className={`p-2 rounded-lg transition-colors ${
-                isDev ? 'hover:bg-[#1c2128] text-slate-500 hover:text-emerald-400' : 'hover:bg-slate-100 text-slate-400 hover:text-pink-500'
+                isDev ? 'hover:bg-[#1c2128] text-slate-500 hover:text-emerald-400' : 'hover:bg-slate-100 text-slate-400 hover:text-blue-500'
               }`}
               title="トップに戻る"
             >
@@ -99,7 +99,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             ) : (
               <button
                 onClick={() => { onNewBlank(); onClose?.(); }}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white border-2 border-dashed border-slate-200 hover:border-pink-400 hover:text-pink-600 rounded-xl text-sm font-bold text-slate-500 transition-all group"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white border-2 border-dashed border-slate-200 hover:border-blue-400 hover:text-blue-600 rounded-xl text-sm font-bold text-slate-500 transition-all group"
               >
                 <FileEdit className="w-4 h-4 group-hover:scale-110 transition-transform" />
                 白紙から自分で作る
@@ -130,7 +130,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <div className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${
                       isDev
                         ? 'bg-[#161b22] text-slate-500 group-hover:bg-emerald-900/30 group-hover:text-emerald-400'
-                        : 'bg-slate-50 text-slate-400 group-hover:bg-pink-50 group-hover:text-pink-500'
+                        : 'bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500'
                     }`}>
                       <IconComponent className="w-4 h-4" />
                     </div>
@@ -178,7 +178,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                         : 'text-slate-600 hover:bg-slate-50'
                     }`}
                   >
-                    <History className={`w-4 h-4 ${isDev ? 'text-slate-600 group-hover:text-emerald-400' : 'text-slate-400 group-hover:text-pink-500'}`} />
+                    <History className={`w-4 h-4 ${isDev ? 'text-slate-600 group-hover:text-emerald-400' : 'text-slate-400 group-hover:text-blue-500'}`} />
                     <div className="flex flex-col truncate">
                       <span className={`truncate font-medium ${isDev ? 'font-mono text-xs' : ''}`}>{item.title}</span>
                       <span className={`text-[10px] ${isDev ? 'text-slate-600' : 'text-slate-400'}`}>
@@ -206,7 +206,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-all font-medium ${
               isDev
                 ? 'text-slate-500 hover:text-emerald-400 hover:bg-[#161b22]'
-                : 'text-slate-500 hover:text-pink-600 hover:bg-pink-50'
+                : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50'
             }`}
           >
             <HelpCircle className="w-4 h-4" />
