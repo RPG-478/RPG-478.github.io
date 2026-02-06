@@ -683,7 +683,7 @@ const App: React.FC = () => {
             </div>
           </div>
           {errorMessage && (
-            <div className="mt-4 px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-full mx-auto w-fit flex items-center gap-2 shadow-lg animate-in fade-in">
+            <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-full w-fit flex items-center gap-2 shadow-xl animate-in fade-in">
               <AlertCircle size={14} /> {errorMessage}
             </div>
           )}
