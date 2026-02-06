@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
 
     const authHeader = req.headers.get("Authorization") ?? "";
     const body = await req.json();
-    const { prompt, token, isAutoFix } = body;
+    const { prompt, token, isAutoFix, isFileAnalysis } = body;
     if (!prompt || typeof prompt !== "string") {
       return new Response(JSON.stringify({ error: "Prompt is required" }), {
         status: 400,
@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 1.0,
-          thinkingConfig: { thinkingLevel: "low" },
+          thinkingConfig: { thinkingLevel: isFileAnalysis ? "high" : "low" },
         },
       }),
     });

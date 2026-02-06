@@ -17,6 +17,19 @@ const MERMAID_KEYWORDS = [
   'gantt', 'title', 'dateFormat', 'section', 'classDiagram', 'erDiagram', 'journey', 'pie', 'mindmap', 'timeline'
 ];
 
+const PROMPT_TICKER = [
+  'AWS 構成図',
+  'ログイン認証の流れ',
+  '3層構造のウェブアプリ',
+  '旅行のスケジュール表',
+  'ECの注文〜配送フロー',
+  'マイクロサービス構成',
+  'オンボーディング導線',
+  'KPIダッシュボード構成',
+  'データパイプライン',
+  'SaaSの権限設計'
+];
+
 const App: React.FC = () => {
   const [prompt, setPrompt] = useState('');
   const [currentCode, setCurrentCode] = useState('');
@@ -107,7 +120,10 @@ const App: React.FC = () => {
     localStorage.setItem('archy-history-v2', JSON.stringify(history));
   }, [history]);
 
-  const handleGenerate = async (targetPrompt?: string, options?: { isAutoFix?: boolean }) => {
+  const handleGenerate = async (
+    targetPrompt?: string,
+    options?: { isAutoFix?: boolean; isFileAnalysis?: boolean }
+  ) => {
     const finalPrompt = targetPrompt || prompt;
     if (!finalPrompt.trim() && !attachedFile) return;
 
@@ -130,7 +146,12 @@ const App: React.FC = () => {
         combinedPrompt = `File Analysis (${attachedFile.name}):\n${attachedFile.content.substring(0, 15000)}\n\nUser Request: ${finalPrompt || 'Visualize the core structure'}`;
       }
 
-      const stream = generateDiagramCodeStream(combinedPrompt, currentCode, session?.access_token, options);
+      const stream = generateDiagramCodeStream(
+        combinedPrompt,
+        currentCode,
+        session?.access_token,
+        { ...options, isFileAnalysis: options?.isFileAnalysis ?? !!attachedFile }
+      );
       let lastCode = currentCode;
 
       for await (const partialCode of stream) {
@@ -593,10 +614,20 @@ const App: React.FC = () => {
                     あらゆる図解を、<br/><span className="text-blue-600">プロンプトから。</span>
                   </h2>
                   <p className="text-lg text-slate-500 mb-10 font-medium max-w-md">複雑なアーキテクチャやフローチャートも、AIが数秒で書き上げます。</p>
-                  <div className="flex flex-wrap justify-center gap-3">
-                    {['AWS 構成図', 'ログイン認証の流れ', '3層構造のウェブアプリ', '旅行のスケジュール表'].map(hint => (
-                      <button key={hint} onClick={() => setPrompt(hint)} className="px-4 py-2 bg-white border border-slate-200 rounded-full text-sm font-bold text-slate-600 hover:border-blue-400 hover:text-blue-600 hover:-translate-y-0.5 transition-all shadow-sm">{hint}</button>
-                    ))}
+                  <div className="w-full max-w-2xl overflow-hidden">
+                    <div className="prompt-marquee">
+                      <div className="prompt-track">
+                        {[...PROMPT_TICKER, ...PROMPT_TICKER].map((hint, index) => (
+                          <button
+                            key={`${hint}-${index}`}
+                            onClick={() => setPrompt(hint)}
+                            className="px-4 py-2 bg-white border border-slate-200 rounded-full text-sm font-bold text-slate-600 hover:border-blue-400 hover:text-blue-600 hover:-translate-y-0.5 transition-all shadow-sm whitespace-nowrap"
+                          >
+                            {hint}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

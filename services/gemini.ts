@@ -10,7 +10,7 @@ export async function* generateDiagramCodeStream(
   prompt: string,
   currentCode?: string,
   accessToken?: string,
-  options?: { isAutoFix?: boolean }
+  options?: { isAutoFix?: boolean; isFileAnalysis?: boolean }
 ): AsyncGenerator<GenerateResult> {
   const userMessage = currentCode 
     ? `現在の図のコード:\n${currentCode}\n\nユーザーの要望: ${prompt}`
@@ -35,6 +35,7 @@ export async function* generateDiagramCodeStream(
         prompt: userMessage,
         token: accessToken,
         isAutoFix: options?.isAutoFix ?? false,
+        isFileAnalysis: options?.isFileAnalysis ?? false,
       })
     });
 
