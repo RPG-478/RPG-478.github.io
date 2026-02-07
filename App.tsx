@@ -55,6 +55,7 @@ const App: React.FC = () => {
   const [authReady, setAuthReady] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
     const [isClaiming, setIsClaiming] = useState(false);
+  const [streamingProgress, setStreamingProgress] = useState(0);
   const [visualDiagram, setVisualDiagram] = useState<VisualDiagram>({ nodes: [], edges: [] });
   const [beginnerView, setBeginnerView] = useState<'mermaid' | 'canvas'>('mermaid');
   const [beginnerInputCollapsed, setBeginnerInputCollapsed] = useState(false);
@@ -177,19 +178,22 @@ const App: React.FC = () => {
 
     if (!target) {
       setCurrentCode('');
+      setStreamingProgress(0);
       return Promise.resolve();
     }
 
     const total = target.length;
-    const steps = Math.min(70, Math.max(20, Math.ceil(total / 30)));
+    const steps = Math.min(90, Math.max(20, Math.ceil(total / 30)));
     const chunk = Math.max(1, Math.ceil(total / steps));
     let index = 0;
+    const intervalMs = total > 1200 ? 20 : 35;
 
     return new Promise<void>((resolve) => {
       streamingTimerRef.current = window.setInterval(() => {
         index += chunk;
         if (index >= total) {
           setCurrentCode(target);
+          setStreamingProgress(100);
           if (streamingTimerRef.current !== null) {
             window.clearInterval(streamingTimerRef.current);
             streamingTimerRef.current = null;
@@ -198,7 +202,9 @@ const App: React.FC = () => {
           return;
         }
         setCurrentCode(target.slice(0, index));
-      }, 35);
+        const percent = Math.min(99, Math.round((index / total) * 100));
+        setStreamingProgress(prev => Math.max(prev, percent));
+      }, intervalMs);
     });
   };
 
@@ -236,6 +242,7 @@ const App: React.FC = () => {
     setAppState('generating');
     setErrorMessage('');
     setIsStreaming(true);
+    setStreamingProgress(0);
     
     // Dev mode: always open editor panel; Beginner mode: never auto-open
     if (isDev && window.innerWidth > 768) {
@@ -333,6 +340,8 @@ ${combinedPrompt}`;
       
       setAppState('idle');
       setIsStreaming(false);
+      setStreamingProgress(100);
+      setTimeout(() => setStreamingProgress(0), 800);
       setPrompt('');
       setAttachedFile(null);
       
@@ -347,6 +356,7 @@ ${combinedPrompt}`;
     } catch (err: any) {
       setAppState('error');
       setIsStreaming(false);
+      setStreamingProgress(0);
       setErrorMessage(normalizeErrorMessage(err.message || 'エラーが発生しました'));
     }
   };
@@ -554,7 +564,7 @@ ${combinedPrompt}`;
     setCurrentCode('graph TD\n  開始 --> 終了');
     setActiveId(null);
     setAppState('idle');
-    setShowEditor(true);
+    setShowEditor(window.innerWidth > 768);
     setActiveTab('edit');
   };
 
@@ -589,45 +599,96 @@ ${combinedPrompt}`;
     setTimeout(() => setCopyFeedback(false), 2000);
   };
 
-  const handleDownloadImage = () => {
+  const renderPngBlob = async () => {
     const svgElement = document.querySelector('.mermaid svg') as SVGSVGElement | null;
-    if (!svgElement) return;
+    if (!svgElement) return null;
 
     const svgData = new XMLSerializer().serializeToString(svgElement);
     const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(svgBlob);
     const img = new Image();
 
-    img.onload = () => {
-      const bbox = svgElement.getBBox();
-      const width = Math.max(1, Math.ceil(bbox.width));
-      const height = Math.max(1, Math.ceil(bbox.height));
-      const canvas = document.createElement('canvas');
-      const scale = 1;
-      canvas.width = width * scale;
-      canvas.height = height * scale;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return new Promise<Blob | null>((resolve) => {
+      img.onload = () => {
+        const bbox = svgElement.getBBox();
+        const width = Math.max(1, Math.ceil(bbox.width));
+        const height = Math.max(1, Math.ceil(bbox.height));
+        const canvas = document.createElement('canvas');
+        const scale = 1;
+        canvas.width = width * scale;
+        canvas.height = height * scale;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          URL.revokeObjectURL(url);
+          resolve(null);
+          return;
+        }
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-      canvas.toBlob((blob) => {
-        if (!blob) return;
-        const pngUrl = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = pngUrl;
-        link.download = `diagram-${Date.now()}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(pngUrl);
-      }, 'image/png');
+        canvas.toBlob((blob) => {
+          URL.revokeObjectURL(url);
+          resolve(blob ?? null);
+        }, 'image/png');
+      };
 
-      URL.revokeObjectURL(url);
-    };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(null);
+      };
 
-    img.src = url;
+      img.src = url;
+    });
+  };
+
+  const handleDownloadImage = async () => {
+    const blob = await renderPngBlob();
+    if (!blob) return;
+
+    const ua = navigator.userAgent || '';
+    const isIOS = /iPad|iPhone|iPod/.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
+    const pngUrl = URL.createObjectURL(blob);
+
+    if (isIOS || !('download' in HTMLAnchorElement.prototype)) {
+      window.open(pngUrl, '_blank');
+      setTimeout(() => URL.revokeObjectURL(pngUrl), 10_000);
+      return;
+    }
+
+    const link = document.createElement('a');
+    link.href = pngUrl;
+    link.download = `diagram-${Date.now()}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(pngUrl);
+  };
+
+  const handleShareImage = async () => {
+    const blob = await renderPngBlob();
+    if (!blob) return;
+
+    const file = new File([blob], `diagram-${Date.now()}.png`, { type: 'image/png' });
+    try {
+      const canShare = (navigator as any).canShare?.({ files: [file] });
+      if (navigator.share && canShare) {
+        await navigator.share({ files: [file], title: 'diagram' });
+        return;
+      }
+    } catch {
+      // fallback below
+    }
+
+    await handleDownloadImage();
+  };
+
+  const handleFocusEditor = () => {
+    if (!textareaRef.current) return;
+    textareaRef.current.focus();
+    const pos = textareaRef.current.value.length;
+    textareaRef.current.setSelectionRange(pos, pos);
+  };
   };
 
   const activeProject = history.find(h => h.id === activeId);
@@ -845,11 +906,17 @@ ${combinedPrompt}`;
                 )}
                 <div className={`w-px h-6 mx-0.5 sm:mx-1 ${isDev ? 'bg-[#30363d]' : 'bg-slate-200'}`} />
                 <button onClick={handleDownloadImage} className={`p-2 rounded-lg transition-colors ${isDev ? 'hover:bg-[#1c2128] text-slate-400' : 'hover:bg-slate-100 text-slate-600'}`} title="PNGで保存"><Download className="w-5 h-5" /></button>
-                {isDev && (
-                  <button className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-bold active:scale-95 bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/30">
-                    <Share2 className="w-4 h-4" /><span className="hidden sm:inline">Share</span>
-                  </button>
-                )}
+                <button
+                  onClick={handleShareImage}
+                  className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-bold active:scale-95 shadow-lg transition-colors ${
+                    isDev
+                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/30'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200'
+                  }`}
+                  title="共有"
+                >
+                  <Share2 className="w-4 h-4" /><span className="hidden sm:inline">共有</span>
+                </button>
               </>
             )}
             {authReady && (
@@ -1096,6 +1163,15 @@ ${combinedPrompt}`;
                     <span className={`text-sm font-black tracking-tight ${isDev ? 'text-slate-300 font-mono' : 'text-slate-700'}`}>
                       {isDev ? 'Compiling diagram...' : 'AIが図を作成中...'}
                     </span>
+                    <div className={`ml-1 flex items-center gap-2 ${isDev ? 'text-emerald-400' : 'text-blue-600'}`}>
+                      <div className={`h-1.5 w-16 rounded-full overflow-hidden ${isDev ? 'bg-[#30363d]' : 'bg-slate-200'}`}>
+                        <div
+                          className={`h-full ${isDev ? 'bg-emerald-400' : 'bg-blue-500'}`}
+                          style={{ width: `${streamingProgress}%` }}
+                        />
+                      </div>
+                      <span className={`text-[10px] font-black ${isDev ? 'font-mono' : ''}`}>{streamingProgress}%</span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1117,6 +1193,7 @@ ${combinedPrompt}`;
                     </div>
                   </div>
                   <div className="flex gap-2">
+                    <button onClick={handleFocusEditor} className="p-1.5 text-slate-500 hover:text-white" title="エディタにフォーカス"><Type size={14} /></button>
                     <button onClick={saveManualSnapshot} className="p-1.5 text-slate-500 hover:text-white" title="スナップショットを保存"><Save size={14} /></button>
                     <button onClick={handleCopyCode} className="p-1.5 text-slate-500 hover:text-white">{copyFeedback ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}</button>
                   </div>

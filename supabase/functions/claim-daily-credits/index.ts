@@ -14,10 +14,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    console.log("[claim-daily-credits] method:", req.method);
-    console.log("[claim-daily-credits] has authorization:", req.headers.has("Authorization"));
-    console.log("[claim-daily-credits] has apikey:", req.headers.has("apikey"));
-    console.log("[claim-daily-credits] has content-type:", req.headers.has("content-type"));
     const supabaseUrl = Deno.env.get("SB_URL") ?? Deno.env.get("SUPABASE_URL") ?? "";
     const serviceRoleKey = Deno.env.get("SB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
@@ -29,7 +25,6 @@ Deno.serve(async (req) => {
     }
 
     const authHeader = req.headers.get("Authorization") ?? "";
-    console.log("[claim-daily-credits] auth header length:", authHeader.length);
     const accessToken = authHeader.replace(/^Bearer\s+/i, "").trim();
     if (!accessToken) {
       return new Response(JSON.stringify({ error: "Unauthorized - no token provided" }), {
@@ -37,6 +32,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
     const admin = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });

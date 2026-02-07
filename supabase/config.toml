@@ -1,0 +1,2 @@
+[functions.claim-daily-credits]
+verify_jwt = true

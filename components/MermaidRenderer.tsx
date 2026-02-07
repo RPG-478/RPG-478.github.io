@@ -15,11 +15,11 @@ try {
   mermaid.initialize({
     startOnLoad: false,
     theme: 'neutral',
-    securityLevel: 'loose',
+    securityLevel: 'strict',
     fontFamily: 'Inter, sans-serif',
     suppressErrorIndicators: true,
     flowchart: {
-      htmlLabels: true,
+      htmlLabels: false,
       curve: 'basis'
     },
     sequence: {
