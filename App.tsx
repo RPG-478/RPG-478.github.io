@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef, useTransition } from '
 import { Send, Download, Copy, RefreshCw, Edit2, Check, Share2, AlertCircle, Layout, Workflow, Code2, Trash2, HelpCircle, Menu, X, ArrowLeft, ArrowDownRight, ArrowRight, Zap, Sparkles, Box, Type, Paperclip, FileText, FileArchive, Loader2, BrainCircuit, Calendar, Clock, History as HistoryIcon, Save, RotateCcw, Database, Milestone, Heart, ChevronUp, ChevronDown } from 'lucide-react';
 import { generateDiagramCodeStream } from './services/gemini';
 import { supabase } from './services/supabase';
+import { claimDailyCredits } from './services/credits';
 import type { Session } from '@supabase/supabase-js';
 import { AppState, DiagramHistory, DiagramVersion, DiagramTemplate, VisualDiagram } from './types';
 import { SNIPPETS, DIAGRAM_TEMPLATES, BEGINNER_TEMPLATES } from './constants';
@@ -50,9 +51,10 @@ const App: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'edit' | 'versions'>('edit');
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<{ plan: string; free_quota_remaining: number | null } | null>(null);
+  const [profile, setProfile] = useState<{ plan: string; free_quota_remaining: number | null; daily_claimed_at?: string | null } | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+    const [isClaiming, setIsClaiming] = useState(false);
   const [visualDiagram, setVisualDiagram] = useState<VisualDiagram>({ nodes: [], edges: [] });
   const [beginnerView, setBeginnerView] = useState<'mermaid' | 'canvas'>('mermaid');
   const [beginnerInputCollapsed, setBeginnerInputCollapsed] = useState(false);
@@ -127,9 +129,9 @@ const App: React.FC = () => {
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('plan, free_quota_remaining')
+      .select('plan, free_quota_remaining, daily_claimed_at')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.warn('Failed to load profile', error.message);
@@ -139,8 +141,28 @@ const App: React.FC = () => {
 
     setProfile({
       plan: data?.plan || 'free',
-      free_quota_remaining: data?.free_quota_remaining ?? null
+      free_quota_remaining: data?.free_quota_remaining ?? 0,
+      daily_claimed_at: data?.daily_claimed_at ?? null
     });
+  };
+
+  const isSameDay = (a?: string | null, b?: Date) => {
+    if (!a || !b) return false;
+    const day = new Date(a);
+    return day.toISOString().slice(0, 10) === b.toISOString().slice(0, 10);
+  };
+
+  const handleClaimDailyCredits = async () => {
+    if (!profile || profile.plan !== 'free') return;
+    setIsClaiming(true);
+    try {
+      const res = await claimDailyCredits();
+      setProfile(prev => prev ? { ...prev, free_quota_remaining: res.remaining, daily_claimed_at: res.daily_claimed_at } : prev);
+    } catch (e: any) {
+      setErrorMessage(normalizeErrorMessage(e.message || 'エラーが発生しました'));
+    } finally {
+      setIsClaiming(false);
+    }
   };
 
   useEffect(() => {
@@ -183,6 +205,12 @@ const App: React.FC = () => {
   const normalizeErrorMessage = (message: string) => {
     if (message.includes('Unauthorized') || message.includes('401')) {
       return '認証が切れました。再ログインしてください。';
+    }
+    if (message.includes('Account limit reached')) {
+      return 'アカウント上限に達しました。時間をおいて再度お試しください。';
+    }
+    if (message.includes('Daily claim already used')) {
+      return '本日の無料枠は受け取り済みです。';
     }
     if (message.includes('Free quota exceeded')) {
       return '無料枠の上限に達しました。プランをご確認ください。';
@@ -710,6 +738,7 @@ ${combinedPrompt}`;
   };
 
   const beginnerBottomInset = isBeginner ? (beginnerInputCollapsed ? 24 : 112) : 0;
+  const claimedToday = isSameDay(profile?.daily_claimed_at, new Date());
 
   return (
     <div className={`flex h-screen w-full overflow-hidden selection:bg-blue-100 font-sans ${
@@ -776,6 +805,20 @@ ${combinedPrompt}`;
             >
               フィードバック
             </button>
+            {session && profile && profile.plan === 'free' && (
+              <button
+                onClick={handleClaimDailyCredits}
+                disabled={claimedToday || isClaiming}
+                className={`hidden sm:inline-flex items-center px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest mr-1 transition-colors border ${
+                  claimedToday
+                    ? 'bg-slate-100 text-slate-400 border-slate-200'
+                    : 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+                }`}
+                title={claimedToday ? '本日の受け取り済み' : '本日の無料枠を受け取る'}
+              >
+                {isClaiming ? '付与中...' : claimedToday ? '受け取り済み' : '無料枠 +5'}
+              </button>
+            )}
             {session && profile && (
               <div className={`hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest mr-2 ${
                 isDev ? 'bg-[#1c2128] text-emerald-400 border border-[#30363d]' : 'bg-blue-50 text-blue-600 border border-blue-100'

@@ -97,6 +97,7 @@ Deno.serve(async (req) => {
     }
 
     const userId = authData.user.id;
+    const ACCOUNT_LIMIT = 500;
     let { data: profile } = await admin
       .from("profiles")
       .select("plan, free_quota_remaining")
@@ -104,18 +105,32 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!profile) {
+      const { count } = await admin
+        .from("profiles")
+        .select("id", { count: "exact", head: true });
+
+      const totalUsers = count ?? 0;
+      if (totalUsers >= ACCOUNT_LIMIT) {
+        return new Response(JSON.stringify({ error: "Account limit reached" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       profile = { plan: "free", free_quota_remaining: 20 } as any;
       await admin.from("profiles").insert({
         id: userId,
         plan: "free",
         free_quota_remaining: 20,
+        daily_claimed_at: null,
+        daily_claimed_count: null,
       });
     }
 
     const plan = profile?.plan ?? "free";
     let remaining = profile?.free_quota_remaining ?? 0;
 
-    if (!isAutoFix && plan !== "pro" && remaining <= 0) {
+    const cost = isFileAnalysis ? 7 : 1;
+    if (!isAutoFix && plan !== "pro" && remaining < cost) {
       return new Response(JSON.stringify({ error: "Free quota exceeded", plan, remaining }), {
         status: 402,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -149,7 +164,7 @@ Deno.serve(async (req) => {
     const text = result?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text || "").join("") ?? "";
 
     if (!isAutoFix && plan !== "pro") {
-      remaining = Math.max(0, (remaining ?? 0) - 1);
+      remaining = Math.max(0, (remaining ?? 0) - cost);
       await admin
         .from("profiles")
         .update({ free_quota_remaining: remaining })
