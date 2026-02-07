@@ -173,7 +173,24 @@ const App: React.FC = () => {
     if (!profile || profile.plan !== 'free') return;
     setIsClaiming(true);
     try {
-      const res = await claimDailyCredits();
+      const { data: initialSession } = await supabase.auth.getSession();
+      const isExpired = initialSession.session?.expires_at
+        ? initialSession.session.expires_at * 1000 < Date.now() + 60_000
+        : true;
+
+      let accessToken = initialSession.session?.access_token;
+
+      if (!accessToken || isExpired) {
+        const { data: refreshed } = await supabase.auth.refreshSession();
+        accessToken = refreshed.session?.access_token;
+      }
+
+      if (!accessToken) {
+        setErrorMessage('セッションが切れました。再度ログインしてください。');
+        return;
+      }
+
+      const res = await claimDailyCredits(accessToken);
       setProfile(prev => prev ? { ...prev, free_quota_remaining: res.remaining, daily_claimed_at: res.daily_claimed_at } : prev);
     } catch (e: any) {
       setErrorMessage(normalizeErrorMessage(e.message || 'エラーが発生しました'));
@@ -705,7 +722,6 @@ ${combinedPrompt}`;
     const pos = textareaRef.current.value.length;
     textareaRef.current.setSelectionRange(pos, pos);
   };
-  };
 
   const activeProject = history.find(h => h.id === activeId);
   const isBetaFull = betaStatus ? betaStatus.remaining <= 0 : false;
@@ -738,34 +754,34 @@ ${combinedPrompt}`;
         </header>
 
         {/* Main content */}
-        <main className="relative z-10 flex flex-col items-center justify-center px-6 pt-8 sm:pt-16 pb-12">
-          <div className="w-20 h-20 sm:w-24 sm:h-24 bg-blue-600 text-white rounded-[2rem] flex items-center justify-center mb-8 shadow-2xl shadow-blue-200">
-            <Sparkles className="w-10 h-10 sm:w-12 sm:h-12" />
+        <main className="relative z-10 flex flex-col items-center justify-center px-4 sm:px-6 pt-4 sm:pt-16 pb-8 sm:pb-12 overflow-y-auto">
+          <div className="w-16 h-16 sm:w-24 sm:h-24 bg-blue-600 text-white rounded-[1.5rem] sm:rounded-[2rem] flex items-center justify-center mb-4 sm:mb-8 shadow-2xl shadow-blue-200">
+            <Sparkles className="w-8 h-8 sm:w-12 sm:h-12" />
           </div>
 
-          <h1 className="text-3xl sm:text-5xl font-black text-slate-900 text-center mb-4 tracking-tight leading-tight">
-            図解を、<span className="text-blue-600">もっとかんたんに。</span>
+          <h1 className="text-2xl sm:text-5xl font-black text-slate-900 text-center mb-2 sm:mb-4 tracking-tight leading-tight">
+            図解を、<span className="text-blue-600">かんたんに。</span>
           </h1>
-          <p className="text-base sm:text-lg text-slate-500 font-medium text-center max-w-lg mb-10">
-            テキストを入力するだけで、AIがフローチャートや構成図をパッと作ってくれます。
+          <p className="text-sm sm:text-lg text-slate-500 font-medium text-center max-w-lg mb-6 sm:mb-10">
+            テキスト入力だけでAIが図を作成
           </p>
 
-          {/* Step Guide - beginner friendly */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 w-full max-w-2xl mb-12">
-            <div className="bg-white/80 backdrop-blur rounded-2xl p-5 text-center border border-slate-100 shadow-sm">
-              <div className="w-10 h-10 mx-auto bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-3 text-lg font-black">1</div>
-              <h3 className="font-bold text-slate-800 text-sm">ログインする</h3>
-              <p className="text-xs text-slate-400 mt-1">Googleアカウントで一瞬</p>
+          {/* Step Guide - horizontal scroll on mobile */}
+          <div className="flex sm:grid sm:grid-cols-3 gap-3 sm:gap-6 w-full max-w-2xl mb-6 sm:mb-12 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-1">
+            <div className="bg-white/80 backdrop-blur rounded-2xl p-3 sm:p-5 text-center border border-slate-100 shadow-sm min-w-[140px] sm:min-w-0 snap-center shrink-0 sm:shrink">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 mx-auto bg-blue-100 text-blue-600 rounded-lg sm:rounded-xl flex items-center justify-center mb-2 sm:mb-3 text-sm sm:text-lg font-black">1</div>
+              <h3 className="font-bold text-slate-800 text-xs sm:text-sm">ログイン</h3>
+              <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5 sm:mt-1">Googleで一瞬</p>
             </div>
-            <div className="bg-white/80 backdrop-blur rounded-2xl p-5 text-center border border-slate-100 shadow-sm">
-              <div className="w-10 h-10 mx-auto bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-3 text-lg font-black">2</div>
-              <h3 className="font-bold text-slate-800 text-sm">作りたい図を入力</h3>
-              <p className="text-xs text-slate-400 mt-1">「ログインの流れ図」みたいに</p>
+            <div className="bg-white/80 backdrop-blur rounded-2xl p-3 sm:p-5 text-center border border-slate-100 shadow-sm min-w-[140px] sm:min-w-0 snap-center shrink-0 sm:shrink">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 mx-auto bg-blue-100 text-blue-600 rounded-lg sm:rounded-xl flex items-center justify-center mb-2 sm:mb-3 text-sm sm:text-lg font-black">2</div>
+              <h3 className="font-bold text-slate-800 text-xs sm:text-sm">テキスト入力</h3>
+              <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5 sm:mt-1">作りたい図を書く</p>
             </div>
-            <div className="bg-white/80 backdrop-blur rounded-2xl p-5 text-center border border-slate-100 shadow-sm">
-              <div className="w-10 h-10 mx-auto bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center mb-3 text-lg font-black">3</div>
-              <h3 className="font-bold text-slate-800 text-sm">AIが自動で図を作成</h3>
-              <p className="text-xs text-slate-400 mt-1">あとは待つだけ！</p>
+            <div className="bg-white/80 backdrop-blur rounded-2xl p-3 sm:p-5 text-center border border-slate-100 shadow-sm min-w-[140px] sm:min-w-0 snap-center shrink-0 sm:shrink">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 mx-auto bg-purple-100 text-purple-600 rounded-lg sm:rounded-xl flex items-center justify-center mb-2 sm:mb-3 text-sm sm:text-lg font-black">3</div>
+              <h3 className="font-bold text-slate-800 text-xs sm:text-sm">AI自動作成</h3>
+              <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5 sm:mt-1">待つだけ！</p>
             </div>
           </div>
 
@@ -859,126 +875,105 @@ ${combinedPrompt}`;
       />
 
       {errorMessage && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-full w-fit flex items-center gap-2 shadow-xl animate-in fade-in">
-          <AlertCircle size={14} /> {errorMessage}
+        <div className="fixed top-2 sm:top-4 left-2 right-2 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-50 px-3 sm:px-4 py-2.5 bg-red-600 text-white text-xs font-bold rounded-2xl sm:rounded-full sm:w-fit flex items-center gap-2 shadow-xl animate-in fade-in">
+          <AlertCircle size={14} className="shrink-0" />
+          <span className="flex-1 line-clamp-2">{errorMessage}</span>
           {currentCode && (
             <button
               onClick={() => handleAutoFix()}
-              className="ml-2 px-2.5 py-1 bg-white text-red-600 text-[10px] font-black rounded-full shadow hover:shadow-lg transition-all"
+              className="ml-1 px-2.5 py-1 bg-white text-red-600 text-[10px] font-black rounded-full shadow hover:shadow-lg transition-all shrink-0"
             >
-              無料で修正
+              修正
             </button>
           )}
         </div>
       )}
 
       <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-        <header className={`h-14 sm:h-16 px-4 md:px-6 flex items-center justify-between z-10 shrink-0 border-b ${
+        <header className={`h-12 sm:h-16 px-2 sm:px-4 md:px-6 flex items-center justify-between z-10 shrink-0 border-b ${
           isDev ? 'bg-[#161b22] border-[#30363d]' : 'bg-white/90 backdrop-blur border-slate-200'
         }`}>
-          <div className="flex items-center gap-3 overflow-hidden">
-            <button onClick={() => setIsSidebarOpen(true)} className={`p-2 rounded-lg md:hidden ${isDev ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-600'}`}><Menu className="w-6 h-6" /></button>
-            <h1 className={`font-bold truncate max-w-[120px] xs:max-w-[160px] sm:max-w-[300px] flex items-center gap-2 ${isDev ? 'text-slate-300 font-mono text-sm' : 'text-slate-700'}`}>
+          <div className="flex items-center gap-1.5 sm:gap-3 overflow-hidden shrink-0">
+            <button onClick={() => setIsSidebarOpen(true)} className={`p-1.5 sm:p-2 rounded-lg md:hidden ${isDev ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-600'}`}><Menu className="w-5 h-5 sm:w-6 sm:h-6" /></button>
+            <h1 className={`font-bold truncate max-w-[80px] sm:max-w-[300px] flex items-center gap-1.5 text-sm sm:text-base ${isDev ? 'text-slate-300 font-mono' : 'text-slate-700'}`}>
               {isDev
                 ? <><span className="text-emerald-400">$</span> {activeId ? activeProject?.title : 'archy'}</>
-                : <><Sparkles className="w-5 h-5 text-blue-500 shrink-0" />{activeId ? activeProject?.title : 'Archy'}</>
+                : <><Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 shrink-0" /><span className="truncate">{activeId ? activeProject?.title : 'Archy'}</span></>
               }
             </h1>
-            <span className="hidden sm:inline-flex items-center px-2 py-0.5 text-[10px] font-black uppercase tracking-widest rounded-full bg-blue-50 text-blue-700 border border-blue-100">
-              Beta
-            </span>
           </div>
 
-          <div className="flex items-center gap-1 sm:gap-2">
-            {!session && authReady && (
-              <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-100 rounded-lg text-[10px] font-black uppercase tracking-widest mr-2">
-                <AlertCircle size={12} /> Login Required
-              </div>
-            )}
-            <button
-              onClick={() => setShowFeedback(true)}
-              className={`hidden sm:inline-flex items-center px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors mr-1 ${
-                isDev ? 'bg-[#1c2128] text-slate-400 border border-[#30363d] hover:text-emerald-400' : 'bg-blue-50 text-blue-700 border border-blue-100 hover:text-blue-800'
-              }`}
-            >
-              フィードバック
-            </button>
+          <div className="flex items-center gap-0.5 sm:gap-2 overflow-x-auto no-scrollbar">
+            {/* Daily credits - visible on mobile too */}
             {session && profile && profile.plan === 'free' && (
               <button
                 onClick={handleClaimDailyCredits}
                 disabled={claimedToday || isClaiming}
-                className={`hidden sm:inline-flex items-center px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest mr-1 transition-colors border ${
+                className={`inline-flex items-center whitespace-nowrap px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wide transition-colors border ${
                   claimedToday
-                    ? 'bg-slate-100 text-slate-400 border-slate-200'
-                    : 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+                    ? (isDev ? 'bg-[#1c2128] text-slate-500 border-[#30363d]' : 'bg-slate-100 text-slate-400 border-slate-200')
+                    : 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700 animate-pulse'
                 }`}
                 title={claimedToday ? '本日の受け取り済み' : '本日の無料枠を受け取る'}
               >
-                {isClaiming ? '付与中...' : claimedToday ? '受け取り済み' : '無料枠 +5'}
+                {isClaiming ? '...' : claimedToday ? '✓済' : '+5'}
               </button>
             )}
+            {/* Remaining quota - compact on mobile */}
             {session && profile && (
-              <div className={`hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest mr-2 ${
+              <div className={`inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-black whitespace-nowrap ${
                 isDev ? 'bg-[#1c2128] text-emerald-400 border border-[#30363d]' : 'bg-blue-50 text-blue-600 border border-blue-100'
               }`}>
-                {profile.plan === 'pro' ? 'Pro' : `Free ${profile.free_quota_remaining ?? 0}`}
+                {profile.plan === 'pro' ? 'Pro' : `${profile.free_quota_remaining ?? 0}`}
               </div>
             )}
+            {/* Feedback - hidden on small mobile */}
+            <button
+              onClick={() => setShowFeedback(true)}
+              className={`hidden sm:inline-flex items-center px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors ${
+                isDev ? 'bg-[#1c2128] text-slate-400 border border-[#30363d] hover:text-emerald-400' : 'bg-blue-50 text-blue-700 border border-blue-100 hover:text-blue-800'
+              }`}
+            >
+              FB
+            </button>
             {currentCode && (
               <>
                 {isDev && (
-                  <div className="hidden sm:flex items-center rounded-lg p-1 mr-2 bg-[#1c2128]">
-                    <button onClick={toggleLayoutOrientation} className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all text-slate-400 hover:bg-[#30363d] hover:text-white">
-                      <ArrowDownRight className="w-3 h-3" />Rotate
-                    </button>
-                  </div>
-                )}
-                {isDev && (
-                  <button onClick={() => setShowEditor(!showEditor)} className={`flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all ${showEditor ? 'bg-emerald-600 text-white' : 'bg-[#1c2128] border border-[#30363d] text-slate-400'}`}>
-                    <Code2 className="w-4 h-4" /><span className="hidden xs:inline">Editor</span>
+                  <button onClick={() => setShowEditor(!showEditor)} className={`flex items-center gap-1 px-2 py-1 sm:py-1.5 rounded-lg text-xs font-bold transition-all ${showEditor ? 'bg-emerald-600 text-white' : (isDev ? 'bg-[#1c2128] border border-[#30363d] text-slate-400' : '')}`}>
+                    <Code2 className="w-3.5 h-3.5" />
                   </button>
                 )}
-                <div className={`w-px h-6 mx-0.5 sm:mx-1 ${isDev ? 'bg-[#30363d]' : 'bg-slate-200'}`} />
-                <button onClick={handleDownloadImage} className={`p-2 rounded-lg transition-colors ${isDev ? 'hover:bg-[#1c2128] text-slate-400' : 'hover:bg-slate-100 text-slate-600'}`} title="PNGで保存"><Download className="w-5 h-5" /></button>
+                <button onClick={handleDownloadImage} className={`p-1.5 sm:p-2 rounded-lg transition-colors ${isDev ? 'hover:bg-[#1c2128] text-slate-400' : 'hover:bg-slate-100 text-slate-600'}`} title="保存"><Download className="w-4 h-4 sm:w-5 sm:h-5" /></button>
                 <button
                   onClick={handleShareImage}
-                  className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-bold active:scale-95 shadow-lg transition-colors ${
+                  className={`p-1.5 sm:px-3 sm:py-2 rounded-lg text-sm font-bold active:scale-95 shadow-lg transition-colors ${
                     isDev
                       ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/30'
                       : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200'
                   }`}
                   title="共有"
                 >
-                  <Share2 className="w-4 h-4" /><span className="hidden sm:inline">共有</span>
+                  <Share2 className="w-4 h-4" />
                 </button>
               </>
             )}
             {authReady && (
               session ? (
-                <div className="flex items-center gap-1">
-                  {isBeginner && currentCode && (
-                    <button
-                      onClick={() => handleBeginnerView(beginnerView === 'mermaid' ? 'canvas' : 'mermaid')}
-                      className="px-2 py-1.5 text-[10px] font-bold rounded-lg transition-colors text-slate-500 hover:text-blue-600 hover:bg-blue-50"
-                      title="表示切替"
-                    >
-                      {beginnerView === 'mermaid' ? '編集' : '表示'}
-                    </button>
-                  )}
+                <div className="flex items-center">
                   <button
                     onClick={handleSwitchMode}
-                    className={`px-2 py-1.5 text-[10px] font-bold rounded-lg transition-colors ${
+                    className={`px-1.5 py-1 text-[10px] font-bold rounded-lg transition-colors hidden sm:inline-flex ${
                       isDev ? 'text-slate-500 hover:text-emerald-400 hover:bg-[#1c2128]' : 'text-slate-400 hover:text-blue-500 hover:bg-blue-50'
                     }`}
                     title="モード切替"
                   >
-                    {isDev ? 'Beginner' : 'Developer'}
+                    {isDev ? 'BEG' : 'DEV'}
                   </button>
                   <button
                     onClick={() => supabase.auth.signOut()}
-                    className={`px-3 py-2 text-xs font-bold ${isDev ? 'text-slate-500 hover:text-white' : 'text-slate-600 hover:text-slate-900'}`}
+                    className={`px-1.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-bold ${isDev ? 'text-slate-500 hover:text-white' : 'text-slate-600 hover:text-slate-900'}`}
                   >
-                    {isDev ? 'Logout' : 'ログアウト'}
+                    {isDev ? '✕' : '✕'}
                   </button>
                 </div>
               ) : (
@@ -1035,19 +1030,19 @@ ${combinedPrompt}`;
 
                 {isBeginner ? (
                   /* Beginner Hero: tappable template cards + how-to guide */
-                  <div className="w-full h-full overflow-y-auto px-4 sm:px-8 py-8 flex flex-col items-center relative z-10">
-                    <div className="w-16 h-16 bg-blue-600 text-white rounded-[1.5rem] flex items-center justify-center mb-6 shadow-xl shadow-blue-200">
-                      <Sparkles className="w-8 h-8" />
+                  <div className="w-full h-full overflow-y-auto px-3 sm:px-8 py-4 sm:py-8 flex flex-col items-center relative z-10">
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-600 text-white rounded-[1rem] sm:rounded-[1.5rem] flex items-center justify-center mb-3 sm:mb-6 shadow-xl shadow-blue-200">
+                      <Sparkles className="w-6 h-6 sm:w-8 sm:h-8" />
                     </div>
-                    <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mb-2 text-center">
-                      どんな図を作りますか
+                    <h2 className="text-xl sm:text-3xl font-black text-slate-900 mb-1 sm:mb-2 text-center">
+                      どんな図を作る？
                     </h2>
-                    <p className="text-sm text-slate-500 mb-8 text-center max-w-md">
-                      タップだけでAIが図を作成。あとは指で操作できます。
+                    <p className="text-xs sm:text-sm text-slate-500 mb-4 sm:mb-8 text-center max-w-md">
+                      タップでAIが作成。指で操作できます。
                     </p>
 
                     {/* Template Cards Grid - beginner-friendly topics */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 w-full max-w-lg mb-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 w-full max-w-lg mb-4 sm:mb-6">
                       {BEGINNER_TEMPLATES.map((tpl) => {
                         const IconMap: Record<string, any> = { Layout, Calendar, Database, BrainCircuit, Clock, Milestone, Workflow };
                         const IconComponent = IconMap[tpl.icon] || Layout;
@@ -1055,12 +1050,12 @@ ${combinedPrompt}`;
                           <button
                             key={tpl.name}
                             onClick={() => handleSelectTemplate(tpl)}
-                            className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/80 backdrop-blur border border-slate-200 hover:border-blue-300 hover:shadow-lg hover:-translate-y-1 transition-all active:scale-95 group"
+                            className="flex flex-col items-center gap-1.5 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white/80 backdrop-blur border border-slate-200 hover:border-blue-300 hover:shadow-lg active:scale-95 transition-all group"
                           >
-                            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-500 group-hover:bg-blue-100 flex items-center justify-center transition-colors">
-                              <IconComponent className="w-5 h-5" />
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-blue-50 text-blue-500 group-hover:bg-blue-100 flex items-center justify-center transition-colors">
+                              <IconComponent className="w-4 h-4 sm:w-5 sm:h-5" />
                             </div>
-                            <span className="text-xs font-bold text-slate-700 text-center leading-tight">{tpl.name}</span>
+                            <span className="text-[10px] sm:text-xs font-bold text-slate-700 text-center leading-tight">{tpl.name}</span>
                           </button>
                         );
                       })}
@@ -1075,13 +1070,13 @@ ${combinedPrompt}`;
                         setActiveId(null);
                         setAppState('idle');
                       }}
-                      className="mb-8 px-6 py-3 bg-white border-2 border-dashed border-blue-300 hover:border-blue-400 rounded-2xl text-sm font-black text-blue-500 active:scale-95 transition-all flex items-center gap-2"
+                      className="mb-4 sm:mb-8 px-4 sm:px-6 py-2 sm:py-3 bg-white border-2 border-dashed border-blue-300 hover:border-blue-400 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black text-blue-500 active:scale-95 transition-all flex items-center gap-2"
                     >
                       自分で1から図を作る
                     </button>
 
                     {/* How-to Guide */}
-                    <div className="w-full max-w-md bg-white/60 backdrop-blur rounded-2xl border border-slate-200 p-5 mb-24">
+                    <div className="w-full max-w-md bg-white/60 backdrop-blur rounded-2xl border border-slate-200 p-4 sm:p-5 mb-20 sm:mb-24">
                       <h3 className="text-sm font-black text-slate-700 mb-3 flex items-center gap-2">
                         <Sparkles className="w-4 h-4 text-blue-500" /> 使い方
                       </h3>
@@ -1160,16 +1155,16 @@ ${combinedPrompt}`;
                   </div>
                 )}
                 {isBeginner && currentCode && (
-                  <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 bg-white/90 border border-slate-200 rounded-full shadow-lg px-1 py-1">
+                  <div className="absolute top-2 sm:top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-0.5 bg-white/90 border border-slate-200 rounded-full shadow-lg px-0.5 py-0.5">
                     <button
                       onClick={() => handleBeginnerView('mermaid')}
-                      className={`px-3 py-1.5 text-[11px] font-bold rounded-full transition-colors ${beginnerView === 'mermaid' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+                      className={`px-2.5 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-[11px] font-bold rounded-full transition-colors ${beginnerView === 'mermaid' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
                     >
                       表示
                     </button>
                     <button
                       onClick={() => handleBeginnerView('canvas')}
-                      className={`px-3 py-1.5 text-[11px] font-bold rounded-full transition-colors ${beginnerView === 'canvas' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+                      className={`px-2.5 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-[11px] font-bold rounded-full transition-colors ${beginnerView === 'canvas' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
                     >
                       編集
                     </button>
@@ -1190,17 +1185,17 @@ ${combinedPrompt}`;
                   <MermaidRenderer chart={currentCode} onAutoFix={handleAutoFix} isStreaming={isStreaming} userMode={userMode || 'beginner'} />
                 )}
                 {appState === 'generating' && (
-                  <div className={`absolute top-6 left-1/2 -translate-x-1/2 backdrop-blur-md px-6 py-3 rounded-full shadow-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 z-50 ${
+                  <div className={`absolute top-2 sm:top-6 left-2 right-2 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-auto backdrop-blur-md px-3 sm:px-6 py-2 sm:py-3 rounded-2xl sm:rounded-full shadow-xl flex items-center gap-2 sm:gap-3 animate-in fade-in slide-in-from-top-4 z-50 ${
                     isDev ? 'bg-[#161b22]/90 border border-emerald-500/30' : 'bg-white/80 border border-slate-200'
                   }`}>
-                    <RefreshCw className={`w-4 h-4 animate-spin ${isDev ? 'text-emerald-400' : 'text-blue-500'}`} />
-                    <span className={`text-sm font-black tracking-tight ${isDev ? 'text-slate-300 font-mono' : 'text-slate-700'}`}>
-                      {isDev ? 'Compiling diagram...' : 'AIが図を作成中...'}
+                    <RefreshCw className={`w-4 h-4 animate-spin shrink-0 ${isDev ? 'text-emerald-400' : 'text-blue-500'}`} />
+                    <span className={`text-xs sm:text-sm font-black tracking-tight truncate ${isDev ? 'text-slate-300 font-mono' : 'text-slate-700'}`}>
+                      {isDev ? 'Compiling...' : '作成中...'}
                     </span>
-                    <div className={`ml-1 flex items-center gap-2 ${isDev ? 'text-emerald-400' : 'text-blue-600'}`}>
-                      <div className={`h-1.5 w-16 rounded-full overflow-hidden ${isDev ? 'bg-[#30363d]' : 'bg-slate-200'}`}>
+                    <div className={`flex items-center gap-1.5 shrink-0 ${isDev ? 'text-emerald-400' : 'text-blue-600'}`}>
+                      <div className={`h-1.5 w-12 sm:w-16 rounded-full overflow-hidden ${isDev ? 'bg-[#30363d]' : 'bg-slate-200'}`}>
                         <div
-                          className={`h-full ${isDev ? 'bg-emerald-400' : 'bg-blue-500'}`}
+                          className={`h-full transition-all ${isDev ? 'bg-emerald-400' : 'bg-blue-500'}`}
                           style={{ width: `${streamingProgress}%` }}
                         />
                       </div>
@@ -1281,20 +1276,22 @@ ${combinedPrompt}`;
           )}
         </div>
 
-        <div className={`absolute bottom-4 sm:bottom-10 left-1/2 -translate-x-1/2 w-full px-3 sm:px-8 z-30 transition-all pb-[env(safe-area-inset-bottom)] ${
-          isDev ? 'max-w-4xl' : 'max-w-2xl'
-        } ${showEditor && window.innerWidth < 768 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-          <div className="flex flex-col gap-3">
+        <div className={`absolute bottom-0 left-0 right-0 sm:bottom-10 sm:left-1/2 sm:-translate-x-1/2 sm:w-full sm:px-8 z-30 transition-all ${
+          isDev ? 'sm:max-w-4xl' : 'sm:max-w-2xl'
+        } ${showEditor && window.innerWidth < 768 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+          style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}
+        >
+          <div className="flex flex-col gap-2 px-2 sm:px-0">
             {/* File attachment badge - developer only */}
             {isDev && attachedFile && (
-              <div className="flex items-center gap-2 self-start text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg bg-emerald-600">
-                {attachedFile.name.endsWith('.zip') ? <FileArchive size={14} /> : <FileText size={14} />}
-                <span>{attachedFile.name}</span>
-                <button onClick={() => setAttachedFile(null)} className="ml-1 hover:text-red-200"><X size={14} /></button>
+              <div className="flex items-center gap-2 self-start text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg bg-emerald-600 ml-1">
+                {attachedFile.name.endsWith('.zip') ? <FileArchive size={12} /> : <FileText size={12} />}
+                <span className="truncate max-w-[150px]">{attachedFile.name}</span>
+                <button onClick={() => setAttachedFile(null)} className="ml-1 hover:text-red-200"><X size={12} /></button>
               </div>
             )}
             {isBeginner && beginnerInputCollapsed ? (
-              <div className="flex items-center justify-center gap-2 bg-white/95 rounded-full shadow-xl border border-slate-200 px-3 py-2">
+              <div className="flex items-center justify-center gap-2 bg-white/95 rounded-full shadow-xl border border-slate-200 px-3 py-2 mx-2 sm:mx-0">
                 <button
                   onClick={() => setBeginnerInputCollapsed(false)}
                   className="flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-blue-600"
@@ -1303,16 +1300,16 @@ ${combinedPrompt}`;
                 </button>
               </div>
             ) : (
-              <div className={`backdrop-blur-2xl flex items-center gap-2 group transition-all ${
+              <div className={`backdrop-blur-2xl flex items-center gap-1 sm:gap-2 group transition-all ${
                 isDev
-                  ? 'bg-[#161b22]/95 rounded-xl sm:rounded-2xl shadow-2xl border border-[#30363d] p-2.5'
-                  : 'bg-white/95 rounded-2xl sm:rounded-[2.5rem] shadow-2xl border border-slate-200 p-2'
+                  ? 'bg-[#161b22]/95 rounded-t-2xl sm:rounded-2xl shadow-2xl border-t sm:border border-[#30363d] p-1.5 sm:p-2.5'
+                  : 'bg-white/95 rounded-t-2xl sm:rounded-[2.5rem] shadow-2xl border-t sm:border border-slate-200 p-1.5 sm:p-2'
               }`}>
               {/* File upload - developer only */}
               {isDev && (
                 <>
-                  <button onClick={() => fileInputRef.current?.click()} disabled={isFileLoading || appState === 'generating'} className="ml-2 p-3 text-slate-500 hover:text-emerald-400">
-                    {isFileLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Paperclip className="w-6 h-6" />}
+                  <button onClick={() => fileInputRef.current?.click()} disabled={isFileLoading || appState === 'generating'} className="ml-1 p-2 sm:p-3 text-slate-500 hover:text-emerald-400">
+                    {isFileLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Paperclip className="w-5 h-5" />}
                   </button>
                   <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".zip,.md,.txt,.json,.js,.ts,.tsx,.py" />
                 </>
@@ -1320,10 +1317,10 @@ ${combinedPrompt}`;
               {isBeginner && (
                 <button
                   onClick={() => setBeginnerInputCollapsed(true)}
-                  className="ml-1 p-2 text-slate-500 hover:text-blue-600"
+                  className="ml-0.5 p-1.5 text-slate-400 hover:text-blue-600"
                   title="入力を閉じる"
                 >
-                  <ChevronDown className="w-5 h-5" />
+                  <ChevronDown className="w-4 h-4" />
                 </button>
               )}
               <input
@@ -1332,22 +1329,22 @@ ${combinedPrompt}`;
                 onChange={(e) => setPrompt(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
                 placeholder={isDev
-                  ? (attachedFile ? 'Describe how to visualize...' : 'Describe the diagram you want to create...')
-                  : '「カレーの作り方」や「旅行の計画」のように書いてください'
+                  ? (attachedFile ? 'Describe...' : 'Describe diagram...')
+                  : 'どんな図を作る？'
                 }
-                className={`flex-1 bg-transparent focus:outline-none font-bold ${
+                className={`flex-1 min-w-0 bg-transparent focus:outline-none font-bold ${
                   isDev
-                    ? 'py-3 sm:py-5 px-2 sm:px-4 text-slate-200 placeholder:text-slate-600 font-mono text-sm sm:text-base'
-                    : 'py-3 sm:py-4 px-3 sm:px-4 text-slate-800 placeholder:text-slate-400 text-sm sm:text-lg'
+                    ? 'py-2.5 sm:py-5 px-2 sm:px-4 text-slate-200 placeholder:text-slate-600 font-mono text-sm'
+                    : 'py-2.5 sm:py-4 px-2 sm:px-4 text-slate-800 placeholder:text-slate-400 text-sm sm:text-lg'
                 }`}
               />
-              <button onClick={() => handleGenerate()} disabled={(!prompt.trim() && !attachedFile) || appState === 'generating'} className={`px-6 sm:px-10 py-3 sm:py-5 text-white font-black flex items-center gap-2 disabled:opacity-50 ${
+              <button onClick={() => handleGenerate()} disabled={(!prompt.trim() && !attachedFile) || appState === 'generating'} className={`px-4 sm:px-10 py-2.5 sm:py-5 text-white font-black flex items-center gap-1.5 disabled:opacity-50 shrink-0 ${
                 isDev
                   ? 'bg-emerald-600 hover:bg-emerald-500 rounded-lg sm:rounded-xl shadow-lg shadow-emerald-900/30'
                   : 'bg-blue-600 hover:bg-blue-700 rounded-xl sm:rounded-[2rem] shadow-lg shadow-blue-200'
               }`}>
                 {appState === 'generating' ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                <span className="hidden xs:inline">{isDev ? (currentCode ? 'Rebuild' : 'Generate') : (currentCode ? '修正' : '作る！')}</span>
+                <span className="hidden sm:inline">{isDev ? (currentCode ? 'Rebuild' : 'Generate') : (currentCode ? '修正' : '作る！')}</span>
               </button>
               </div>
             )}

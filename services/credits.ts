@@ -1,18 +1,29 @@
-import { supabase, supabaseUrl, supabaseAnonKey } from "./supabase";
+import { supabaseUrl, supabaseAnonKey } from "./supabase";
 
-export async function claimDailyCredits() {
+export async function claimDailyCredits(accessToken: string) {
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error("Supabase設定が見つかりません。");
   }
 
-  const { data, error } = await supabase.functions.invoke("claim-daily-credits", {
+  const response = await fetch(`${supabaseUrl}/functions/v1/claim-daily-credits`, {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": supabaseAnonKey,
+      "Authorization": `Bearer ${accessToken}`,
+    },
   });
 
-  if (error) {
-    const message = error.context?.bodyText || error.message;
-    throw new Error(message || "送信に失敗しました。");
+  if (!response.ok) {
+    const errBody = await response.text();
+    let msg = "送信に失敗しました。";
+    try {
+      const parsed = JSON.parse(errBody);
+      msg = parsed.error || msg;
+    } catch {}
+    throw new Error(msg);
   }
 
+  const data = await response.json();
   return data as { remaining: number; daily_claimed_at: string };
 }

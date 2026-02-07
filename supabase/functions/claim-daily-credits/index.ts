@@ -33,11 +33,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    console.log("[DEBUG] Authorization Header:", authHeader);
+    console.log("[DEBUG] Access Token:", accessToken);
+
     const admin = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
     const { data: authData, error: authError } = await admin.auth.getUser(accessToken);
+    console.log("[DEBUG] Auth Data:", authData);
+    console.log("[DEBUG] Auth Error:", authError);
+
     if (authError || !authData?.user) {
       return new Response(JSON.stringify({ error: "Unauthorized - invalid token", details: authError?.message }), {
         status: 401,
