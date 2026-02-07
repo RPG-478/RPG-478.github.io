@@ -4,7 +4,7 @@ import { generateDiagramCodeStream } from './services/gemini';
 import { supabase } from './services/supabase';
 import type { Session } from '@supabase/supabase-js';
 import { AppState, DiagramHistory, DiagramVersion, DiagramTemplate, VisualDiagram } from './types';
-import { SNIPPETS, DIAGRAM_TEMPLATES, BEGINNER_TEMPLATES } from './constants';
+import { SNIPPETS, DIAGRAM_TEMPLATES, BEGINNER_TEMPLATES, REVIEW_URL } from './constants';
 import MermaidRenderer from './components/MermaidRenderer';
 import BeginnerCanvas from './components/BeginnerCanvas';
 import Sidebar from './components/Sidebar';
@@ -68,6 +68,7 @@ const App: React.FC = () => {
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const streamingTimerRef = useRef<number | null>(null);
+  const lastPromptRef = useRef<string>('');
 
   // Derived mode flags - available everywhere including handleGenerate
   const isDev = userMode === 'developer';
@@ -175,6 +176,16 @@ const App: React.FC = () => {
     });
   };
 
+  const normalizeErrorMessage = (message: string) => {
+    if (message.includes('Unauthorized') || message.includes('401')) {
+      return '認証が切れました。再ログインしてください。';
+    }
+    if (message.includes('Free quota exceeded')) {
+      return '無料枠の上限に達しました。プランをご確認ください。';
+    }
+    return message || 'エラーが発生しました';
+  };
+
   const handleGenerate = async (
     targetPrompt?: string,
     options?: { isAutoFix?: boolean; isFileAnalysis?: boolean }
@@ -218,6 +229,7 @@ const App: React.FC = () => {
         return;
       }
 
+      lastPromptRef.current = finalPrompt;
       let combinedPrompt = finalPrompt;
       if (attachedFile) {
         combinedPrompt = `File Analysis (${attachedFile.name}):\n${attachedFile.content.substring(0, 15000)}\n\nUser Request: ${finalPrompt || 'Visualize the core structure'}`;
@@ -300,8 +312,13 @@ ${combinedPrompt}`;
     } catch (err: any) {
       setAppState('error');
       setIsStreaming(false);
-      setErrorMessage(err.message || 'エラーが発生しました');
+      setErrorMessage(normalizeErrorMessage(err.message || 'エラーが発生しました'));
     }
+  };
+
+  const handleRetryLast = () => {
+    if (!lastPromptRef.current) return;
+    handleGenerate(lastPromptRef.current);
   };
 
   const handleAutoFix = (sourceError?: string) => {
@@ -734,6 +751,9 @@ ${combinedPrompt}`;
                 : <><Sparkles className="w-5 h-5 text-blue-500 shrink-0" />{activeId ? activeProject?.title : 'Archy'}</>
               }
             </h1>
+            <span className="hidden sm:inline-flex items-center px-2 py-0.5 text-[10px] font-black uppercase tracking-widest rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+              Beta
+            </span>
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
@@ -742,6 +762,16 @@ ${combinedPrompt}`;
                 <AlertCircle size={12} /> Login Required
               </div>
             )}
+            <a
+              href={REVIEW_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`hidden sm:inline-flex items-center px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors mr-1 ${
+                isDev ? 'bg-[#1c2128] text-slate-400 border border-[#30363d] hover:text-emerald-400' : 'bg-blue-50 text-blue-700 border border-blue-100 hover:text-blue-800'
+              }`}
+            >
+              フィードバック
+            </a>
             {session && profile && (
               <div className={`hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest mr-2 ${
                 isDev ? 'bg-[#1c2128] text-emerald-400 border border-[#30363d]' : 'bg-blue-50 text-blue-600 border border-blue-100'
@@ -945,6 +975,39 @@ ${combinedPrompt}`;
               </div>
             ) : (
               <div className={`w-full h-full relative ${isDev ? 'dev-dots-bg' : ''}`}>
+                {appState === 'error' && errorMessage && (
+                  <div className="absolute inset-0 z-40 flex items-center justify-center p-4 bg-slate-900/30 backdrop-blur-sm">
+                    <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 p-6">
+                      <div className="flex items-center gap-3 mb-3">
+                        <AlertCircle className="w-5 h-5 text-red-600" />
+                        <h3 className="text-sm font-black text-slate-800">エラーが発生しました</h3>
+                      </div>
+                      <p className="text-xs text-slate-500 mb-4">{errorMessage}</p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleRetryLast}
+                          className="flex-1 py-2 rounded-lg text-xs font-black bg-blue-600 text-white hover:bg-blue-700"
+                        >
+                          もう一度試す
+                        </button>
+                        <button
+                          onClick={() => setShowHelp(true)}
+                          className="flex-1 py-2 rounded-lg text-xs font-black border border-slate-200 text-slate-600 hover:bg-slate-50"
+                        >
+                          ヘルプ
+                        </button>
+                        {!session && (
+                          <button
+                            onClick={() => supabase.auth.signInWithOAuth({ provider: 'google' })}
+                            className="flex-1 py-2 rounded-lg text-xs font-black border border-blue-200 text-blue-700 hover:bg-blue-50"
+                          >
+                            ログイン
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {isBeginner && currentCode && (
                   <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 bg-white/90 border border-slate-200 rounded-full shadow-lg px-1 py-1">
                     <button

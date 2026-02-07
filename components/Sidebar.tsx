@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { History, Layout, Plus, Trash2, Github, Server, Cloud, GitBranch, Database, UserCheck, Box, Workflow, FileEdit, X, BrainCircuit, Calendar, Clock, Milestone, HelpCircle, Sparkles, Terminal, Code2, Users } from 'lucide-react';
+import { History, Layout, Plus, Trash2, Github, Server, Cloud, GitBranch, Database, UserCheck, Box, Workflow, FileEdit, X, BrainCircuit, Calendar, Clock, Milestone, HelpCircle, Sparkles, Terminal, Code2, Users, MessageSquare } from 'lucide-react';
 import { DiagramHistory, DiagramTemplate } from '../types';
-import { DIAGRAM_TEMPLATES, BEGINNER_TEMPLATES } from '../constants';
+import { DIAGRAM_TEMPLATES, BEGINNER_TEMPLATES, REVIEW_URL } from '../constants';
 import type { UserMode } from './ModeSelect';
 
 const IconMap: Record<string, any> = {
@@ -222,6 +222,17 @@ const Sidebar: React.FC<SidebarProps> = ({
           }`}>
             {isDev ? 'Archy // Diagram Assistant' : 'Architecture Diagram Assistant'}
           </div>
+          <a 
+            href={REVIEW_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`flex items-center gap-3 px-3 py-2 text-sm transition-colors ${
+              isDev ? 'text-slate-500 hover:text-emerald-400' : 'text-slate-500 hover:text-blue-600'
+            }`}
+          >
+            <MessageSquare className="w-4 h-4" />
+            {isDev ? 'Feedback' : 'フィードバック'}
+          </a>
           <button 
             onClick={onShowHelp}
             className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-all font-medium ${

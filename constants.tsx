@@ -41,6 +41,9 @@ export const DIAGRAM_TEMPLATES: DiagramTemplate[] = [
   }
 ];
 
+// Beta feedback
+export const REVIEW_URL = 'https://github.com/RPG-478/RPG-478.github.io/issues';
+
 /** ビギナー向けテンプレート（ビジネス用語なし・身近な内容） */
 export const BEGINNER_TEMPLATES: DiagramTemplate[] = [
   {
