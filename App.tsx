@@ -4,11 +4,13 @@ import { generateDiagramCodeStream } from './services/gemini';
 import { supabase } from './services/supabase';
 import type { Session } from '@supabase/supabase-js';
 import { AppState, DiagramHistory, DiagramVersion, DiagramTemplate, VisualDiagram } from './types';
-import { SNIPPETS, DIAGRAM_TEMPLATES, BEGINNER_TEMPLATES, REVIEW_URL } from './constants';
+import { SNIPPETS, DIAGRAM_TEMPLATES, BEGINNER_TEMPLATES } from './constants';
 import MermaidRenderer from './components/MermaidRenderer';
 import BeginnerCanvas from './components/BeginnerCanvas';
 import Sidebar from './components/Sidebar';
 import HelpModal from './components/HelpModal';
+import FeedbackModal from './components/FeedbackModal';
+import BugReportModal from './components/BugReportModal';
 import ModeSelect, { UserMode } from './components/ModeSelect';
 import { parseMermaidToVisual, visualToMermaid, createEmptyDiagram } from './services/mermaidBridge';
 import JSZip from 'jszip';
@@ -41,6 +43,8 @@ const App: React.FC = () => {
   const [showEditor, setShowEditor] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [showBugReport, setShowBugReport] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [copyFeedback, setCopyFeedback] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -722,6 +726,8 @@ ${combinedPrompt}`;
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         onShowHelp={() => setShowHelp(true)}
+        onShowFeedback={() => setShowFeedback(true)}
+        onShowBugReport={() => setShowBugReport(true)}
         userMode={userMode || 'beginner'}
       />
 
@@ -762,16 +768,14 @@ ${combinedPrompt}`;
                 <AlertCircle size={12} /> Login Required
               </div>
             )}
-            <a
-              href={REVIEW_URL}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={() => setShowFeedback(true)}
               className={`hidden sm:inline-flex items-center px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors mr-1 ${
                 isDev ? 'bg-[#1c2128] text-slate-400 border border-[#30363d] hover:text-emerald-400' : 'bg-blue-50 text-blue-700 border border-blue-100 hover:text-blue-800'
               }`}
             >
               フィードバック
-            </a>
+            </button>
             {session && profile && (
               <div className={`hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest mr-2 ${
                 isDev ? 'bg-[#1c2128] text-emerald-400 border border-[#30363d]' : 'bg-blue-50 text-blue-600 border border-blue-100'
@@ -1194,6 +1198,8 @@ ${combinedPrompt}`;
         </div>
 
         {showHelp && <HelpModal onClose={() => setShowHelp(false)} onTryPrompt={handleGenerate} />}
+        {showFeedback && <FeedbackModal onClose={() => setShowFeedback(false)} userMode={userMode || 'beginner'} />}
+        {showBugReport && <BugReportModal onClose={() => setShowBugReport(false)} userMode={userMode || 'beginner'} />}
       </main>
     </div>
   );
