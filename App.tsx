@@ -206,6 +206,9 @@ const App: React.FC = () => {
     if (message.includes('Unauthorized') || message.includes('401')) {
       return '認証が切れました。再ログインしてください。';
     }
+    if (message.includes('Failed to fetch') || message.includes('CORS')) {
+      return '機能が未デプロイ、またはCORS設定が未完了です。管理者に連絡してください。';
+    }
     if (message.includes('Account limit reached')) {
       return 'アカウント上限に達しました。時間をおいて再度お試しください。';
     }
