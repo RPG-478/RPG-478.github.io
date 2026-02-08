@@ -14,6 +14,7 @@ import HelpModal from './components/HelpModal';
 import FeedbackModal from './components/FeedbackModal';
 import BugReportModal from './components/BugReportModal';
 import ModeSelect, { UserMode } from './components/ModeSelect';
+import TutorialOverlay from './components/TutorialOverlay';
 import { parseMermaidToVisual, visualToMermaid, createEmptyDiagram } from './services/mermaidBridge';
 import JSZip from 'jszip';
 
@@ -52,7 +53,8 @@ const App: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'edit' | 'versions'>('edit');
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<{ plan: string; free_quota_remaining: number | null; daily_claimed_at?: string | null } | null>(null);
+  const [profile, setProfile] = useState<{ plan: string; free_quota_remaining: number | null; daily_claimed_at?: string | null; tutorial_completed?: boolean } | null>(null);
+  const [showTutorial, setShowTutorial] = useState(false);
   const [betaStatus, setBetaStatus] = useState<{ limit: number; used: number; remaining: number } | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -76,8 +78,11 @@ const App: React.FC = () => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editorScrollRef = useRef<HTMLDivElement>(null);
   const streamingTimerRef = useRef<number | null>(null);
   const lastPromptRef = useRef<string>('');
+  const [highlightLine, setHighlightLine] = useState<number | null>(null);
+  const [showMobileFab, setShowMobileFab] = useState(false);
 
   // Derived mode flags - available everywhere including handleGenerate
   const isDev = userMode === 'developer';
@@ -146,7 +151,7 @@ const App: React.FC = () => {
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('plan, free_quota_remaining, daily_claimed_at')
+      .select('plan, free_quota_remaining, daily_claimed_at, tutorial_completed')
       .eq('id', userId)
       .maybeSingle();
 
@@ -156,11 +161,17 @@ const App: React.FC = () => {
       return;
     }
 
+    const tutorialDone = data?.tutorial_completed === true;
     setProfile({
       plan: data?.plan || 'free',
       free_quota_remaining: data?.free_quota_remaining ?? 0,
-      daily_claimed_at: data?.daily_claimed_at ?? null
+      daily_claimed_at: data?.daily_claimed_at ?? null,
+      tutorial_completed: tutorialDone,
     });
+    // Show tutorial for new users who haven't completed it
+    if (!tutorialDone) {
+      setShowTutorial(true);
+    }
   };
 
   const isSameDay = (a?: string | null, b?: Date) => {
@@ -310,17 +321,21 @@ const App: React.FC = () => {
         combinedPrompt = `File Analysis (${attachedFile.name}):\n${attachedFile.content.substring(0, 15000)}\n\nUser Request: ${finalPrompt || 'Visualize the core structure'}`;
       }
 
-      // Beginner mode: force simple graph TD flowchart only
+      // Beginner mode: allow rich diagrams but keep syntax safe
       if (isBeginner) {
-        combinedPrompt = `【最重要ルール】以下を必ず守ること：
-- 必ず "graph TD" で始まるフローチャートのみ出力する
-- ノードIDは A, B, C, D... のようにアルファベット1文字にする
-- ノードの書式は A[ラベル] か A{ラベル} か A((ラベル)) のみ
-- 接続は --> か -->|ラベル| のみ使用
-- subgraph, style, classDef, class は絶対に使わない
-- mindmap, sequenceDiagram, gantt, erDiagram, timeline, pie, journey は絶対に使わない
-- ノードは最大12個まで
-- ラベルは日本語で短く（8文字以内）
+        combinedPrompt = `【重要】ユーザーの要求に忠実に、詳細で見応えのある図を生成してください。
+フローチャートの場合は "graph TD" または "graph LR" を使う。
+テーマに応じて sequenceDiagram, gantt, mindmap, erDiagram, pie, timeline, journey, classDiagram など最適な図の種類を自動選択してよい。
+
+ルール：
+- ノードIDはアルファベット（A, B, C... または user, server など）を使う
+- ノードの書式: A[ラベル] A{ラベル} A((ラベル)) A([ラベル]) A[[ラベル]]
+- 接続: -->, -->|ラベル|, -.->. ==> を使える
+- subgraph を使ってグループ化してよい
+- style, classDef は使わない（レンダリング側でスタイルする）
+- ラベルは日本語でわかりやすく
+- ノード数は最大20個まで
+- 「複雑にして」「詳細に」と言われたら、ノードを増やし、subgraphや条件分岐を追加して詳細化すること
 
 ${combinedPrompt}`;
       }
@@ -723,6 +738,34 @@ ${combinedPrompt}`;
     textareaRef.current.setSelectionRange(pos, pos);
   };
 
+  const scrollToLine = (lineNum: number) => {
+    if (!textareaRef.current) return;
+    const lines = currentCode.split('\n');
+    const charPos = lines.slice(0, lineNum - 1).reduce((acc, l) => acc + l.length + 1, 0);
+    textareaRef.current.focus();
+    textareaRef.current.setSelectionRange(charPos, charPos + (lines[lineNum - 1]?.length ?? 0));
+    // Scroll textarea to approximate line position
+    const lineHeight = 20;
+    textareaRef.current.scrollTop = Math.max(0, (lineNum - 3) * lineHeight);
+    setHighlightLine(lineNum);
+    setTimeout(() => setHighlightLine(null), 2000);
+  };
+
+  const handleNodeClick = (nodeId: string) => {
+    if (!isDev || !currentCode) return;
+    // Search for the node ID in the code
+    const lines = currentCode.split('\n');
+    const cleanId = nodeId.replace(/^flowchart-/, '').replace(/-\d+$/, '');
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].includes(cleanId)) {
+        if (!showEditor) setShowEditor(true);
+        setActiveTab('edit');
+        setTimeout(() => scrollToLine(i + 1), 100);
+        return;
+      }
+    }
+  };
+
   const activeProject = history.find(h => h.id === activeId);
   const isBetaFull = betaStatus ? betaStatus.remaining <= 0 : false;
 
@@ -840,6 +883,18 @@ ${combinedPrompt}`;
     localStorage.setItem('archy-user-mode', next);
   };
 
+  const handleTutorialComplete = async () => {
+    setShowTutorial(false);
+    // Mark tutorial as completed in DB
+    if (session?.user?.id) {
+      await supabase
+        .from('profiles')
+        .update({ tutorial_completed: true })
+        .eq('id', session.user.id);
+      setProfile(prev => prev ? { ...prev, tutorial_completed: true } : prev);
+    }
+  };
+
   const handleBeginnerView = (next: 'mermaid' | 'canvas') => {
     if (next === 'canvas' && currentCode) {
       try {
@@ -895,7 +950,7 @@ ${combinedPrompt}`;
         }`}>
           <div className="flex items-center gap-1.5 sm:gap-3 overflow-hidden shrink-0">
             <button onClick={() => setIsSidebarOpen(true)} className={`p-1.5 sm:p-2 rounded-lg md:hidden ${isDev ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-600'}`}><Menu className="w-5 h-5 sm:w-6 sm:h-6" /></button>
-            <h1 className={`font-bold truncate max-w-[80px] sm:max-w-[300px] flex items-center gap-1.5 text-sm sm:text-base ${isDev ? 'text-slate-300 font-mono' : 'text-slate-700'}`}>
+            <h1 className={`font-bold truncate max-w-[120px] sm:max-w-[300px] flex items-center gap-1.5 text-sm sm:text-base ${isDev ? 'text-slate-300 font-mono' : 'text-slate-700'}`}>
               {isDev
                 ? <><span className="text-emerald-400">$</span> {activeId ? activeProject?.title : 'archy'}</>
                 : <><Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 shrink-0" /><span className="truncate">{activeId ? activeProject?.title : 'Archy'}</span></>
@@ -903,34 +958,31 @@ ${combinedPrompt}`;
             </h1>
           </div>
 
-          <div className="flex items-center gap-0.5 sm:gap-2 overflow-x-auto no-scrollbar">
-            {/* Daily credits - visible on mobile too */}
+          {/* Desktop header actions */}
+          <div className="hidden sm:flex items-center gap-1.5">
             {session && profile && profile.plan === 'free' && (
               <button
                 onClick={handleClaimDailyCredits}
                 disabled={claimedToday || isClaiming}
-                className={`inline-flex items-center whitespace-nowrap px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wide transition-colors border ${
+                className={`inline-flex items-center px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wide transition-colors border ${
                   claimedToday
                     ? (isDev ? 'bg-[#1c2128] text-slate-500 border-[#30363d]' : 'bg-slate-100 text-slate-400 border-slate-200')
-                    : 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700 animate-pulse'
+                    : 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
                 }`}
-                title={claimedToday ? '本日の受け取り済み' : '本日の無料枠を受け取る'}
               >
-                {isClaiming ? '...' : claimedToday ? '✓済' : '+5'}
+                {isClaiming ? '...' : claimedToday ? '✓済' : '無料枠 +5'}
               </button>
             )}
-            {/* Remaining quota - compact on mobile */}
             {session && profile && (
-              <div className={`inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-black whitespace-nowrap ${
+              <div className={`inline-flex items-center px-2.5 py-1.5 rounded-lg text-[10px] font-black ${
                 isDev ? 'bg-[#1c2128] text-emerald-400 border border-[#30363d]' : 'bg-blue-50 text-blue-600 border border-blue-100'
               }`}>
-                {profile.plan === 'pro' ? 'Pro' : `${profile.free_quota_remaining ?? 0}`}
+                {profile.plan === 'pro' ? 'Pro' : `Free ${profile.free_quota_remaining ?? 0}`}
               </div>
             )}
-            {/* Feedback - hidden on small mobile */}
             <button
               onClick={() => setShowFeedback(true)}
-              className={`hidden sm:inline-flex items-center px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors ${
+              className={`inline-flex items-center px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors ${
                 isDev ? 'bg-[#1c2128] text-slate-400 border border-[#30363d] hover:text-emerald-400' : 'bg-blue-50 text-blue-700 border border-blue-100 hover:text-blue-800'
               }`}
             >
@@ -939,14 +991,14 @@ ${combinedPrompt}`;
             {currentCode && (
               <>
                 {isDev && (
-                  <button onClick={() => setShowEditor(!showEditor)} className={`flex items-center gap-1 px-2 py-1 sm:py-1.5 rounded-lg text-xs font-bold transition-all ${showEditor ? 'bg-emerald-600 text-white' : (isDev ? 'bg-[#1c2128] border border-[#30363d] text-slate-400' : '')}`}>
+                  <button onClick={() => setShowEditor(!showEditor)} className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-bold transition-all ${showEditor ? 'bg-emerald-600 text-white' : 'bg-[#1c2128] border border-[#30363d] text-slate-400'}`}>
                     <Code2 className="w-3.5 h-3.5" />
                   </button>
                 )}
-                <button onClick={handleDownloadImage} className={`p-1.5 sm:p-2 rounded-lg transition-colors ${isDev ? 'hover:bg-[#1c2128] text-slate-400' : 'hover:bg-slate-100 text-slate-600'}`} title="保存"><Download className="w-4 h-4 sm:w-5 sm:h-5" /></button>
+                <button onClick={handleDownloadImage} className={`p-2 rounded-lg transition-colors ${isDev ? 'hover:bg-[#1c2128] text-slate-400' : 'hover:bg-slate-100 text-slate-600'}`} title="保存"><Download className="w-5 h-5" /></button>
                 <button
                   onClick={handleShareImage}
-                  className={`p-1.5 sm:px-3 sm:py-2 rounded-lg text-sm font-bold active:scale-95 shadow-lg transition-colors ${
+                  className={`px-3 py-2 rounded-lg text-sm font-bold active:scale-95 shadow-lg transition-colors ${
                     isDev
                       ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/30'
                       : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200'
@@ -959,21 +1011,20 @@ ${combinedPrompt}`;
             )}
             {authReady && (
               session ? (
-                <div className="flex items-center">
+                <div className="flex items-center gap-1">
                   <button
                     onClick={handleSwitchMode}
-                    className={`px-1.5 py-1 text-[10px] font-bold rounded-lg transition-colors hidden sm:inline-flex ${
+                    className={`px-2 py-1 text-[10px] font-bold rounded-lg transition-colors ${
                       isDev ? 'text-slate-500 hover:text-emerald-400 hover:bg-[#1c2128]' : 'text-slate-400 hover:text-blue-500 hover:bg-blue-50'
                     }`}
-                    title="モード切替"
                   >
                     {isDev ? 'BEG' : 'DEV'}
                   </button>
                   <button
                     onClick={() => supabase.auth.signOut()}
-                    className={`px-1.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-bold ${isDev ? 'text-slate-500 hover:text-white' : 'text-slate-600 hover:text-slate-900'}`}
+                    className={`px-2 py-1.5 text-xs font-bold ${isDev ? 'text-slate-500 hover:text-white' : 'text-slate-600 hover:text-slate-900'}`}
                   >
-                    {isDev ? '✕' : '✕'}
+                    ✕
                   </button>
                 </div>
               ) : (
@@ -1179,10 +1230,10 @@ ${combinedPrompt}`;
                       bottomInset={beginnerBottomInset}
                     />
                   ) : (
-                    <MermaidRenderer chart={currentCode} onAutoFix={handleAutoFix} isStreaming={isStreaming} userMode={userMode || 'beginner'} />
+                    <MermaidRenderer chart={currentCode} onAutoFix={handleAutoFix} isStreaming={isStreaming} userMode={userMode || 'beginner'} onNodeClick={isDev ? handleNodeClick : undefined} />
                   )
                 ) : (
-                  <MermaidRenderer chart={currentCode} onAutoFix={handleAutoFix} isStreaming={isStreaming} userMode={userMode || 'beginner'} />
+                  <MermaidRenderer chart={currentCode} onAutoFix={handleAutoFix} isStreaming={isStreaming} userMode={userMode || 'beginner'} onNodeClick={isDev ? handleNodeClick : undefined} />
                 )}
                 {appState === 'generating' && (
                   <div className={`absolute top-2 sm:top-6 left-2 right-2 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-auto backdrop-blur-md px-3 sm:px-6 py-2 sm:py-3 rounded-2xl sm:rounded-full shadow-xl flex items-center gap-2 sm:gap-3 animate-in fade-in slide-in-from-top-4 z-50 ${
@@ -1244,15 +1295,39 @@ ${combinedPrompt}`;
                     <span className="text-[10px] font-mono text-slate-600">| UTF-8</span>
                     <span className="text-[10px] font-mono text-slate-600">| Mermaid</span>
                   </div>
-                  <textarea
-                    ref={textareaRef}
-                    value={currentCode}
-                    onChange={handleTextareaChange}
-                    onKeyDown={handleKeyDown}
-                    spellCheck={false}
-                    className="flex-1 font-mono text-sm p-6 sm:p-8 resize-none focus:outline-none bg-[#0d1117] text-emerald-100 caret-emerald-400 selection:bg-emerald-900/40"
-                    placeholder="// Start typing Mermaid code..."
-                  />
+                  <div ref={editorScrollRef} className="flex-1 flex overflow-auto bg-[#0d1117]">
+                    {/* Line numbers gutter */}
+                    <div className="sticky left-0 select-none shrink-0 pt-4 pb-4 pl-2 pr-1 text-right border-r border-[#1c2128] bg-[#0d1117] z-10" aria-hidden>
+                      {currentCode.split('\n').map((_, i) => (
+                        <div
+                          key={i}
+                          className={`text-[11px] leading-[20px] font-mono cursor-pointer transition-colors ${
+                            highlightLine === i + 1
+                              ? 'text-emerald-400 bg-emerald-900/30 rounded-sm px-1 -mx-1'
+                              : 'text-slate-600 hover:text-slate-400'
+                          }`}
+                          style={{ minWidth: '2.5rem' }}
+                          onClick={() => scrollToLine(i + 1)}
+                        >
+                          {i + 1}
+                        </div>
+                      ))}
+                    </div>
+                    <textarea
+                      ref={textareaRef}
+                      value={currentCode}
+                      onChange={handleTextareaChange}
+                      onKeyDown={handleKeyDown}
+                      spellCheck={false}
+                      className="flex-1 font-mono text-sm leading-[20px] pt-4 pb-4 px-4 resize-none focus:outline-none bg-[#0d1117] text-emerald-100 caret-emerald-400 selection:bg-emerald-900/40"
+                      placeholder="// Start typing Mermaid code..."
+                      onScroll={(e) => {
+                        // Sync gutter scroll with textarea
+                        const gutter = editorScrollRef.current?.firstElementChild as HTMLElement;
+                        if (gutter) gutter.scrollTop = (e.target as HTMLTextAreaElement).scrollTop;
+                      }}
+                    />
+                  </div>
                 </>
               ) : (
                 <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#0d1117]">
@@ -1276,10 +1351,10 @@ ${combinedPrompt}`;
           )}
         </div>
 
-        <div className={`absolute bottom-0 left-0 right-0 sm:bottom-10 sm:left-1/2 sm:-translate-x-1/2 sm:w-full sm:px-8 z-30 transition-all ${
+        <div className={`absolute bottom-[calc(3rem_+_env(safe-area-inset-bottom))] sm:bottom-10 left-0 right-0 sm:left-1/2 sm:-translate-x-1/2 sm:w-full sm:px-8 z-30 transition-all ${
           isDev ? 'sm:max-w-4xl' : 'sm:max-w-2xl'
         } ${showEditor && window.innerWidth < 768 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-          style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}
+          style={{ paddingBottom: '8px' }}
         >
           <div className="flex flex-col gap-2 px-2 sm:px-0">
             {/* File attachment badge - developer only */}
@@ -1351,9 +1426,90 @@ ${combinedPrompt}`;
           </div>
         </div>
 
+        {/* Mobile Bottom Action Bar */}
+        {session && (
+          <nav className={`sm:hidden fixed bottom-0 left-0 right-0 z-50 border-t ${
+            isDev ? 'bg-[#161b22]/95 backdrop-blur-xl border-[#30363d]' : 'bg-white/95 backdrop-blur-xl border-slate-200'
+          }`} style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+            <div className="flex items-stretch justify-around h-12">
+              {/* Menu / Sidebar */}
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className={`flex flex-col items-center justify-center gap-0.5 flex-1 active:scale-90 transition-transform ${
+                  isDev ? 'text-slate-400 active:text-emerald-400' : 'text-slate-500 active:text-blue-600'
+                }`}
+              >
+                <Menu className="w-5 h-5" />
+                <span className="text-[9px] font-bold leading-none">メニュー</span>
+              </button>
+
+              {/* Credits / Claim */}
+              <button
+                onClick={!claimedToday && !isClaiming && profile?.plan === 'free' ? handleClaimDailyCredits : undefined}
+                className={`flex flex-col items-center justify-center gap-0.5 flex-1 active:scale-90 transition-transform ${
+                  !claimedToday && profile?.plan === 'free'
+                    ? (isDev ? 'text-emerald-400' : 'text-blue-600')
+                    : (isDev ? 'text-slate-500' : 'text-slate-400')
+                }`}
+              >
+                <Zap className="w-5 h-5" />
+                <span className="text-[9px] font-bold leading-none">
+                  {profile?.plan === 'pro' ? 'Pro' : claimedToday ? `残${profile?.free_quota_remaining ?? 0}` : '+5'}
+                </span>
+              </button>
+
+              {/* Mode Switch */}
+              <button
+                onClick={handleSwitchMode}
+                className={`flex flex-col items-center justify-center gap-0.5 flex-1 active:scale-90 transition-transform ${
+                  isDev ? 'text-emerald-400' : 'text-blue-600'
+                }`}
+              >
+                {isDev ? <Sparkles className="w-5 h-5" /> : <Code2 className="w-5 h-5" />}
+                <span className="text-[9px] font-bold leading-none">{isDev ? 'かんたん' : '開発'}</span>
+              </button>
+
+              {/* Editor toggle (dev) or Download/Help */}
+              {isDev && currentCode ? (
+                <button
+                  onClick={() => setShowEditor(!showEditor)}
+                  className={`flex flex-col items-center justify-center gap-0.5 flex-1 active:scale-90 transition-transform ${
+                    showEditor ? 'text-emerald-400' : 'text-slate-400'
+                  }`}
+                >
+                  <Code2 className="w-5 h-5" />
+                  <span className="text-[9px] font-bold leading-none">Editor</span>
+                </button>
+              ) : (
+                <button
+                  onClick={currentCode ? handleDownloadImage : () => setShowHelp(true)}
+                  className={`flex flex-col items-center justify-center gap-0.5 flex-1 active:scale-90 transition-transform ${
+                    isDev ? 'text-slate-400' : 'text-slate-500'
+                  }`}
+                >
+                  {currentCode ? <Download className="w-5 h-5" /> : <HelpCircle className="w-5 h-5" />}
+                  <span className="text-[9px] font-bold leading-none">{currentCode ? '保存' : 'ヘルプ'}</span>
+                </button>
+              )}
+
+              {/* Share or Feedback */}
+              <button
+                onClick={currentCode ? handleShareImage : () => setShowFeedback(true)}
+                className={`flex flex-col items-center justify-center gap-0.5 flex-1 active:scale-90 transition-transform ${
+                  isDev ? 'text-slate-400' : 'text-slate-500'
+                }`}
+              >
+                {currentCode ? <Share2 className="w-5 h-5" /> : <Heart className="w-5 h-5" />}
+                <span className="text-[9px] font-bold leading-none">{currentCode ? '共有' : 'FB'}</span>
+              </button>
+            </div>
+          </nav>
+        )}
+
         {showHelp && <HelpModal onClose={() => setShowHelp(false)} onTryPrompt={handleGenerate} />}
         {showFeedback && <FeedbackModal onClose={() => setShowFeedback(false)} userMode={userMode || 'beginner'} />}
         {showBugReport && <BugReportModal onClose={() => setShowBugReport(false)} userMode={userMode || 'beginner'} />}
+        {showTutorial && <TutorialOverlay onComplete={handleTutorialComplete} isDev={isDev} />}
       </main>
     </div>
   );

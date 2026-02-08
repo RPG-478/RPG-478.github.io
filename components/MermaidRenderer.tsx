@@ -8,6 +8,7 @@ interface MermaidRendererProps {
   onAutoFix?: (errorMessage: string) => void;
   isStreaming?: boolean;
   userMode?: UserMode;
+  onNodeClick?: (nodeId: string) => void;
 }
 
 // Global initialization
@@ -35,7 +36,7 @@ try {
   console.error("Mermaid initialization failed:", e);
 }
 
-const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, onAutoFix, isStreaming = false, userMode = 'beginner' }) => {
+const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, onAutoFix, isStreaming = false, userMode = 'beginner', onNodeClick }) => {
   const isDev = userMode === 'developer';
   // Use deferred value to keep the main thread (typing) snappy
   const deferredChart = useDeferredValue(chart);
@@ -162,6 +163,28 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, onAutoFix, isS
     setScale(newScale);
     setOffset({ x: 0, y: 0 });
   };
+
+  // Attach click handlers to SVG nodes for dev mode click-to-jump
+  useEffect(() => {
+    if (!onNodeClick || !containerRef.current) return;
+    const svgEl = containerRef.current.querySelector('svg');
+    if (!svgEl) return;
+
+    const nodes = svgEl.querySelectorAll('.node, .nodeLabel, [id^="flowchart-"]');
+    const handler = (e: Event) => {
+      e.stopPropagation();
+      const target = (e.currentTarget as HTMLElement);
+      const nodeId = target.id || target.closest('[id]')?.id || '';
+      if (nodeId) onNodeClick(nodeId);
+    };
+    nodes.forEach(node => {
+      (node as HTMLElement).style.cursor = 'pointer';
+      node.addEventListener('click', handler);
+    });
+    return () => {
+      nodes.forEach(node => node.removeEventListener('click', handler));
+    };
+  }, [svg, onNodeClick]);
 
   const displaySvg = syntaxStatus === 'valid' ? svg : lastValidSvg;
   const isGhosted = syntaxStatus === 'invalid' && lastValidSvg !== '';

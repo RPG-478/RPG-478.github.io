@@ -123,6 +123,7 @@ Deno.serve(async (req) => {
         free_quota_remaining: 20,
         daily_claimed_at: null,
         daily_claimed_count: null,
+        tutorial_completed: false,
       });
     }
 
