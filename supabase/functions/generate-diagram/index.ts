@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
 
     const authHeader = req.headers.get("Authorization") ?? "";
     const body = await req.json();
-    const { prompt, token, isAutoFix, isFileAnalysis } = body;
+    const { prompt, token, isAutoFix, isFileAnalysis, complexity } = body;
     if (!prompt || typeof prompt !== "string") {
       return new Response(JSON.stringify({ error: "Prompt is required" }), {
         status: 400,
@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
     const plan = profile?.plan ?? "free";
     let remaining = profile?.free_quota_remaining ?? 0;
 
-    const cost = isFileAnalysis ? 7 : 1;
+    const cost = isFileAnalysis ? 7 : (complexity === 'complex' ? 3 : 1);
     if (!isAutoFix && plan !== "pro" && remaining < cost) {
       return new Response(JSON.stringify({ error: "Free quota exceeded", plan, remaining }), {
         status: 402,

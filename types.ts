@@ -44,3 +44,13 @@ export interface VisualDiagram {
   nodes: VisualNode[];
   edges: VisualEdge[];
 }
+
+// ── Diagram generation settings ──
+
+export interface DiagramSettings {
+  complexity: 'simple' | 'standard' | 'complex';
+  direction: 'TD' | 'LR' | 'BT' | 'RL' | 'auto';
+  diagramType: 'auto' | 'flowchart' | 'sequence' | 'mindmap' | 'gantt' | 'er' | 'pie' | 'timeline' | 'journey' | 'class';
+  maxNodes: number;
+  useSubgraphs: boolean;
+}

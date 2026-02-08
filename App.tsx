@@ -1,11 +1,11 @@
 import React, { useState, useCallback, useEffect, useRef, useTransition } from 'react';
-import { Send, Download, Copy, RefreshCw, Edit2, Check, Share2, AlertCircle, Layout, Workflow, Code2, Trash2, HelpCircle, Menu, X, ArrowLeft, ArrowDownRight, ArrowRight, Zap, Sparkles, Box, Type, Paperclip, FileText, FileArchive, Loader2, BrainCircuit, Calendar, Clock, History as HistoryIcon, Save, RotateCcw, Database, Milestone, Heart, ChevronUp, ChevronDown } from 'lucide-react';
+import { Send, Download, Copy, RefreshCw, Edit2, Check, Share2, AlertCircle, Layout, Workflow, Code2, Trash2, HelpCircle, Menu, X, ArrowLeft, ArrowDownRight, ArrowRight, Zap, Sparkles, Box, Type, Paperclip, FileText, FileArchive, Loader2, BrainCircuit, Calendar, Clock, History as HistoryIcon, Save, RotateCcw, Database, Milestone, Heart, ChevronUp, ChevronDown, SlidersHorizontal } from 'lucide-react';
 import { generateDiagramCodeStream } from './services/gemini';
 import { supabase } from './services/supabase';
 import { claimDailyCredits } from './services/credits';
 import { fetchBetaRemaining } from './services/beta';
 import type { Session } from '@supabase/supabase-js';
-import { AppState, DiagramHistory, DiagramVersion, DiagramTemplate, VisualDiagram } from './types';
+import { AppState, DiagramHistory, DiagramVersion, DiagramTemplate, VisualDiagram, DiagramSettings } from './types';
 import { SNIPPETS, DIAGRAM_TEMPLATES, BEGINNER_TEMPLATES } from './constants';
 import MermaidRenderer from './components/MermaidRenderer';
 import BeginnerCanvas from './components/BeginnerCanvas';
@@ -15,7 +15,9 @@ import FeedbackModal from './components/FeedbackModal';
 import BugReportModal from './components/BugReportModal';
 import ModeSelect, { UserMode } from './components/ModeSelect';
 import TutorialOverlay from './components/TutorialOverlay';
+import DiagramSettingsPanel from './components/DiagramSettingsPanel';
 import { parseMermaidToVisual, visualToMermaid, createEmptyDiagram } from './services/mermaidBridge';
+import { DEFAULT_SETTINGS, buildSettingsPrefix, getCreditCost, generateRandomDiagram, enhanceDiagram } from './services/diagramEnhancer';
 import JSZip from 'jszip';
 
 const MERMAID_KEYWORDS = [
@@ -83,6 +85,10 @@ const App: React.FC = () => {
   const lastPromptRef = useRef<string>('');
   const [highlightLine, setHighlightLine] = useState<number | null>(null);
   const [showMobileFab, setShowMobileFab] = useState(false);
+
+  // Diagram settings state
+  const [diagramSettings, setDiagramSettings] = useState<DiagramSettings>(DEFAULT_SETTINGS);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Derived mode flags - available everywhere including handleGenerate
   const isDev = userMode === 'developer';
@@ -323,28 +329,30 @@ const App: React.FC = () => {
 
       // Beginner mode: allow rich diagrams but keep syntax safe
       if (isBeginner) {
-        combinedPrompt = `【重要】ユーザーの要求に忠実に、詳細で見応えのある図を生成してください。
-フローチャートの場合は "graph TD" または "graph LR" を使う。
-テーマに応じて sequenceDiagram, gantt, mindmap, erDiagram, pie, timeline, journey, classDiagram など最適な図の種類を自動選択してよい。
-
-ルール：
-- ノードIDはアルファベット（A, B, C... または user, server など）を使う
-- ノードの書式: A[ラベル] A{ラベル} A((ラベル)) A([ラベル]) A[[ラベル]]
-- 接続: -->, -->|ラベル|, -.->. ==> を使える
-- subgraph を使ってグループ化してよい
-- style, classDef は使わない（レンダリング側でスタイルする）
-- ラベルは日本語でわかりやすく
-- ノード数は最大20個まで
-- 「複雑にして」「詳細に」と言われたら、ノードを増やし、subgraphや条件分岐を追加して詳細化すること
+        const maxN = diagramSettings.complexity === 'complex' ? 25 : diagramSettings.complexity === 'simple' ? 6 : 15;
+        const detailHint = diagramSettings.complexity === 'complex'
+          ? 'subgraph・条件分岐・並列パスを積極的に使い、非常に詳細な図を生成せよ。'
+          : diagramSettings.complexity === 'simple' ? 'シンプルに。' : '';
+        const dirHint = diagramSettings.direction !== 'auto' ? `方向は${diagramSettings.direction}。` : '';
+        const typeHint = diagramSettings.diagramType !== 'auto' ? `図の種類は${diagramSettings.diagramType}。` : '';
+        combinedPrompt = `【重要】ユーザーの要求に忠実に図を生成。
+フローチャートは "graph TD" または "graph LR"。
+最適な図の種類を自動選択。
+ルール: ノードIDはアルファベット、接続は-->.日本語ラベル。style/classDef禁止。
+ノード数は最大${maxN}個。${detailHint}${dirHint}${typeHint}
 
 ${combinedPrompt}`;
+      } else {
+        // Developer mode: compact settings prefix (minimizes AI input tokens)
+        const prefix = buildSettingsPrefix(diagramSettings);
+        if (prefix) combinedPrompt = prefix + combinedPrompt;
       }
 
       const stream = generateDiagramCodeStream(
         combinedPrompt,
         currentCode,
         accessToken,
-        { ...options, isFileAnalysis: options?.isFileAnalysis ?? !!attachedFile }
+        { ...options, isFileAnalysis: options?.isFileAnalysis ?? !!attachedFile, complexity: diagramSettings.complexity }
       );
       let lastCode = currentCode;
 
@@ -358,6 +366,15 @@ ${combinedPrompt}`;
         }
         if (partialCode.plan) {
           setProfile(prev => prev ? { ...prev, plan: partialCode.plan } : prev);
+        }
+      }
+
+      // Complex mode: client-side enhancement (adds feedback loops, parallel paths — 0 extra AI tokens)
+      if (diagramSettings.complexity === 'complex' && lastCode) {
+        const enhanced = enhanceDiagram(lastCode, diagramSettings);
+        if (enhanced !== lastCode) {
+          lastCode = enhanced;
+          await animateCodeReveal(lastCode);
         }
       }
       
@@ -895,6 +912,18 @@ ${combinedPrompt}`;
     }
   };
 
+  /** Random diagram generation using graph theory (0 AI tokens, 0 credits) */
+  const handleRandomGenerate = () => {
+    const code = generateRandomDiagram(diagramSettings, isBeginner);
+    setCurrentCode(code);
+    setActiveId(null);
+    setAppState('idle');
+    setShowSettings(false);
+    if (isBeginner) {
+      try { setVisualDiagram(parseMermaidToVisual(code)); } catch {}
+    }
+  };
+
   const handleBeginnerView = (next: 'mermaid' | 'canvas') => {
     if (next === 'canvas' && currentCode) {
       try {
@@ -1365,6 +1394,19 @@ ${combinedPrompt}`;
                 <button onClick={() => setAttachedFile(null)} className="ml-1 hover:text-red-200"><X size={12} /></button>
               </div>
             )}
+
+            {/* Diagram Settings Panel */}
+            {showSettings && (
+              <DiagramSettingsPanel
+                settings={diagramSettings}
+                onChange={setDiagramSettings}
+                onRandomGenerate={handleRandomGenerate}
+                isDev={isDev}
+                isBeginner={isBeginner}
+                creditCost={getCreditCost(diagramSettings, !!attachedFile)}
+              />
+            )}
+
             {isBeginner && beginnerInputCollapsed ? (
               <div className="flex items-center justify-center gap-2 bg-white/95 rounded-full shadow-xl border border-slate-200 px-3 py-2 mx-2 sm:mx-0">
                 <button
@@ -1389,6 +1431,18 @@ ${combinedPrompt}`;
                   <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".zip,.md,.txt,.json,.js,.ts,.tsx,.py" />
                 </>
               )}
+              {/* Settings toggle */}
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className={`p-1.5 sm:p-2 rounded-lg transition-all ${
+                  showSettings
+                    ? (isDev ? 'bg-emerald-600/20 text-emerald-400' : 'bg-blue-100 text-blue-600')
+                    : (isDev ? 'text-slate-500 hover:text-emerald-400' : 'text-slate-400 hover:text-blue-600')
+                }`}
+                title="図の設定"
+              >
+                <SlidersHorizontal className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
               {isBeginner && (
                 <button
                   onClick={() => setBeginnerInputCollapsed(true)}
