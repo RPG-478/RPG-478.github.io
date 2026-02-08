@@ -978,7 +978,7 @@ ${combinedPrompt}`;
           isDev ? 'bg-[#161b22] border-[#30363d]' : 'bg-white/90 backdrop-blur border-slate-200'
         }`}>
           <div className="flex items-center gap-1.5 sm:gap-3 overflow-hidden shrink-0">
-            <button onClick={() => setIsSidebarOpen(true)} className={`p-1.5 sm:p-2 rounded-lg md:hidden ${isDev ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-600'}`}><Menu className="w-5 h-5 sm:w-6 sm:h-6" /></button>
+            <button data-tour="tour-menu" onClick={() => setIsSidebarOpen(true)} className={`p-1.5 sm:p-2 rounded-lg md:hidden ${isDev ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-600'}`}><Menu className="w-5 h-5 sm:w-6 sm:h-6" /></button>
             <h1 className={`font-bold truncate max-w-[120px] sm:max-w-[300px] flex items-center gap-1.5 text-sm sm:text-base ${isDev ? 'text-slate-300 font-mono' : 'text-slate-700'}`}>
               {isDev
                 ? <><span className="text-emerald-400">$</span> {activeId ? activeProject?.title : 'archy'}</>
@@ -1003,7 +1003,7 @@ ${combinedPrompt}`;
               </button>
             )}
             {session && profile && (
-              <div className={`inline-flex items-center px-2.5 py-1.5 rounded-lg text-[10px] font-black ${
+              <div data-tour="tour-credits" className={`inline-flex items-center px-2.5 py-1.5 rounded-lg text-[10px] font-black ${
                 isDev ? 'bg-[#1c2128] text-emerald-400 border border-[#30363d]' : 'bg-blue-50 text-blue-600 border border-blue-100'
               }`}>
                 {profile.plan === 'pro' ? 'Pro' : `Free ${profile.free_quota_remaining ?? 0}`}
@@ -1042,6 +1042,7 @@ ${combinedPrompt}`;
               session ? (
                 <div className="flex items-center gap-1">
                   <button
+                    data-tour="tour-mode"
                     onClick={handleSwitchMode}
                     className={`px-2 py-1 text-[10px] font-bold rounded-lg transition-colors ${
                       isDev ? 'text-slate-500 hover:text-emerald-400 hover:bg-[#1c2128]' : 'text-slate-400 hover:text-blue-500 hover:bg-blue-50'
@@ -1433,6 +1434,7 @@ ${combinedPrompt}`;
               )}
               {/* Settings toggle */}
               <button
+                data-tour="tour-settings"
                 onClick={() => setShowSettings(!showSettings)}
                 className={`p-1.5 sm:p-2 rounded-lg transition-all ${
                   showSettings
@@ -1453,6 +1455,7 @@ ${combinedPrompt}`;
                 </button>
               )}
               <input
+                data-tour="tour-input"
                 type="text"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
@@ -1467,7 +1470,7 @@ ${combinedPrompt}`;
                     : 'py-2.5 sm:py-4 px-2 sm:px-4 text-slate-800 placeholder:text-slate-400 text-sm sm:text-lg'
                 }`}
               />
-              <button onClick={() => handleGenerate()} disabled={(!prompt.trim() && !attachedFile) || appState === 'generating'} className={`px-4 sm:px-10 py-2.5 sm:py-5 text-white font-black flex items-center gap-1.5 disabled:opacity-50 shrink-0 ${
+              <button data-tour="tour-send" onClick={() => handleGenerate()} disabled={(!prompt.trim() && !attachedFile) || appState === 'generating'} className={`px-4 sm:px-10 py-2.5 sm:py-5 text-white font-black flex items-center gap-1.5 disabled:opacity-50 shrink-0 ${
                 isDev
                   ? 'bg-emerald-600 hover:bg-emerald-500 rounded-lg sm:rounded-xl shadow-lg shadow-emerald-900/30'
                   : 'bg-blue-600 hover:bg-blue-700 rounded-xl sm:rounded-[2rem] shadow-lg shadow-blue-200'
@@ -1488,6 +1491,7 @@ ${combinedPrompt}`;
             <div className="flex items-stretch justify-around h-12">
               {/* Menu / Sidebar */}
               <button
+                data-tour="tour-menu"
                 onClick={() => setIsSidebarOpen(true)}
                 className={`flex flex-col items-center justify-center gap-0.5 flex-1 active:scale-90 transition-transform ${
                   isDev ? 'text-slate-400 active:text-emerald-400' : 'text-slate-500 active:text-blue-600'
@@ -1499,6 +1503,7 @@ ${combinedPrompt}`;
 
               {/* Credits / Claim */}
               <button
+                data-tour="tour-credits"
                 onClick={!claimedToday && !isClaiming && profile?.plan === 'free' ? handleClaimDailyCredits : undefined}
                 className={`flex flex-col items-center justify-center gap-0.5 flex-1 active:scale-90 transition-transform ${
                   !claimedToday && profile?.plan === 'free'
@@ -1514,6 +1519,7 @@ ${combinedPrompt}`;
 
               {/* Mode Switch */}
               <button
+                data-tour="tour-mode"
                 onClick={handleSwitchMode}
                 className={`flex flex-col items-center justify-center gap-0.5 flex-1 active:scale-90 transition-transform ${
                   isDev ? 'text-emerald-400' : 'text-blue-600'
@@ -1563,7 +1569,7 @@ ${combinedPrompt}`;
         {showHelp && <HelpModal onClose={() => setShowHelp(false)} onTryPrompt={handleGenerate} />}
         {showFeedback && <FeedbackModal onClose={() => setShowFeedback(false)} userMode={userMode || 'beginner'} />}
         {showBugReport && <BugReportModal onClose={() => setShowBugReport(false)} userMode={userMode || 'beginner'} />}
-        {showTutorial && <TutorialOverlay onComplete={handleTutorialComplete} isDev={isDev} />}
+        {showTutorial && <TutorialOverlay onComplete={handleTutorialComplete} isDev={isDev} onRequestSwitchMode={handleSwitchMode} />}
       </main>
     </div>
   );
