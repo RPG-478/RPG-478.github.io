@@ -18,6 +18,8 @@ interface DepthMeterProps {
   isCalibrated: boolean;
   onCalibrateClick: () => void;
   onResetCalibration: () => void;
+  unlockedTitleCount: number;
+  onTitleGalleryClick: () => void;
 }
 
 const formatDistance = (pixels: number, pxToCm: number): string => {
@@ -64,7 +66,9 @@ export const DepthMeter: React.FC<DepthMeterProps> = ({
   onInertiaEnabledChange,
   isCalibrated,
   onCalibrateClick,
-  onResetCalibration
+  onResetCalibration,
+  unlockedTitleCount,
+  onTitleGalleryClick
 }) => {
   return (
     <>
@@ -137,6 +141,12 @@ export const DepthMeter: React.FC<DepthMeterProps> = ({
               onChange={(e) => onInertiaEnabledChange(e.target.checked)}
             />
           </label>
+          <button
+            className="w-full py-1.5 bg-gray-800 hover:bg-gray-700 text-yellow-400 rounded font-bold text-xs transition-colors border border-gray-700"
+            onClick={onTitleGalleryClick}
+          >
+            🏆 称号 {unlockedTitleCount > 0 ? `(${unlockedTitleCount})` : ''}
+          </button>
         </div>
 
         {/* Splits / Laps */}

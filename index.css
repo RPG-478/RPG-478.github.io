@@ -1,3 +1,40 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ===== Title Unlock Animations ===== */
+@keyframes sparkle-appear {
+  0% {
+    transform: scale(0) rotate(0deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2) rotate(90deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0) rotate(180deg);
+    opacity: 0;
+  }
+}
+
+@keyframes sparkle-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(180deg); }
+}
+
+@keyframes ring-burst {
+  0% {
+    transform: scale(0.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(3);
+    opacity: 0;
+  }
+}
+
+@keyframes text-glow {
+  0%   { text-shadow: 0 0 6px rgba(255, 199, 0, 0.3); }
+  100% { text-shadow: 0 0 20px rgba(255, 199, 0, 0.8), 0 0 40px rgba(255, 199, 0, 0.3); }
+}

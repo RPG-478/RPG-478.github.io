@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { DepthMeter } from './components/DepthMeter';
 import { CardCalibration } from './components/CardCalibration';
+import { TitleUnlockOverlay, TitleGallery } from './components/TitleUnlockOverlay';
 import { SplitRecord } from './types';
 
 // Constants for physics
@@ -42,6 +43,8 @@ const App: React.FC = () => {
   const [calibratedPxPerCm, setCalibratedPxPerCm] = useState<number | null>(null);
   const [showCalibration, setShowCalibration] = useState(false);
   const [titleToast, setTitleToast] = useState<string | null>(null);
+  const [showTitleGallery, setShowTitleGallery] = useState(false);
+  const [unlockedTitles, setUnlockedTitles] = useState<Set<string>>(new Set());
 
   // 速度・加速度計測用
   const lastVelocity = useRef(0);
@@ -141,13 +144,14 @@ const App: React.FC = () => {
     titleTimeoutRef.current = window.setTimeout(() => {
       setTitleToast(null);
       titleTimeoutRef.current = null;
-    }, 2500);
+    }, 3600);
   }, []);
 
   const checkTitleUnlocks = useCallback((currentM: number) => {
     const unlockOnce = (key: string, label: string) => {
       if (unlockedTitlesRef.current.has(key)) return;
       unlockedTitlesRef.current.add(key);
+      setUnlockedTitles(new Set(unlockedTitlesRef.current));
       showTitleToast(label);
     };
 
@@ -258,6 +262,7 @@ const App: React.FC = () => {
           setCurrentSpeedMps(0);
           setTitleToast(null);
           unlockedTitlesRef.current.clear();
+          setUnlockedTitles(new Set());
           lastThousandRef.current = 0;
           lastMoveTimeRef.current = null;
         }
@@ -473,10 +478,15 @@ const App: React.FC = () => {
         />
       )}
 
-      {titleToast && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[90] px-4 py-2 rounded-full bg-black/80 border border-yellow-600 text-yellow-300 text-xs font-mono shadow-[0_0_16px_rgba(250,204,21,0.3)]">
-          TITLE UNLOCKED: {titleToast}
-        </div>
+      {/* Title Unlock Overlay with sparkles */}
+      <TitleUnlockOverlay title={titleToast} />
+
+      {/* Title Gallery Modal */}
+      {showTitleGallery && (
+        <TitleGallery
+          unlockedKeys={unlockedTitles}
+          onClose={() => setShowTitleGallery(false)}
+        />
       )}
 
       <DepthMeter 
@@ -496,6 +506,8 @@ const App: React.FC = () => {
         isCalibrated={calibratedPxPerCm !== null}
         onCalibrateClick={() => setShowCalibration(true)}
         onResetCalibration={handleResetCalibration}
+        unlockedTitleCount={unlockedTitles.size}
+        onTitleGalleryClick={() => setShowTitleGallery(true)}
       />
 
       {/* Main Content Container */}
