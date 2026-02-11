@@ -35,6 +35,7 @@ const App: React.FC = () => {
   const lastVelocity = useRef(0);
   const lastTimeRef = useRef<number | null>(null);
   const totalDistanceRef = useRef(0); // meters
+  const inputDeltaRef = useRef(0);
   const lastScrollDir = useRef(0);
   const accelStreak = useRef(0);
   const maxAccelStreakSec = useRef(0);
@@ -96,6 +97,12 @@ const App: React.FC = () => {
     const dtSec = lastTime ? Math.max((time - lastTime) / 1000, 1 / 120) : 1 / 60;
     lastTimeRef.current = time;
 
+    const directDelta = inertiaEnabled ? 0 : inputDeltaRef.current;
+    if (!inertiaEnabled) {
+      inputDeltaRef.current = 0;
+      velocityRef.current = directDelta;
+    }
+
     // スクロール回数（方向変化でカウント）
     const dir = Math.sign(velocityRef.current);
     if (dir !== 0 && dir !== lastScrollDir.current) {
@@ -116,19 +123,23 @@ const App: React.FC = () => {
       accelStreak.current = 0;
     }
 
-    velocityRef.current *= FRICTION;
+    if (inertiaEnabled) {
+      velocityRef.current *= FRICTION;
 
-    // Gravity logic
-    if (depthRef.current > 0) {
-        const dynamicGravity = GRAVITY + (depthRef.current * 0.0005);
-        depthRef.current -= dynamicGravity;
+      // Gravity logic
+      if (depthRef.current > 0) {
+          const dynamicGravity = GRAVITY + (depthRef.current * 0.0005);
+          depthRef.current -= dynamicGravity;
+          if (depthRef.current < 0) depthRef.current = 0;
+      }
+
+      depthRef.current += velocityRef.current;
+    } else {
+      if (directDelta !== 0) {
+        depthRef.current += directDelta;
         if (depthRef.current < 0) depthRef.current = 0;
-    }
-
-    depthRef.current += velocityRef.current;
-
-    if (!inertiaEnabled) {
-      velocityRef.current = 0;
+      }
+      if (directDelta === 0) velocityRef.current = 0;
     }
 
     // Hard floor / Reset
@@ -222,7 +233,12 @@ const App: React.FC = () => {
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       const delta = e.deltaY;
-      velocityRef.current += delta * SCROLL_MULTIPLIER * 0.15;
+      const applied = delta * SCROLL_MULTIPLIER * 0.15;
+      if (inertiaEnabled) {
+        velocityRef.current += applied;
+      } else {
+        inputDeltaRef.current += applied;
+      }
     };
 
     let touchStartY = 0;
@@ -234,7 +250,12 @@ const App: React.FC = () => {
         const touchY = e.touches[0].clientY;
         const delta = touchStartY - touchY;
         touchStartY = touchY;
-        velocityRef.current += delta * SCROLL_MULTIPLIER * 0.25; 
+        const applied = delta * SCROLL_MULTIPLIER * 0.25;
+        if (inertiaEnabled) {
+          velocityRef.current += applied;
+        } else {
+          inputDeltaRef.current += applied;
+        }
     };
 
     window.addEventListener('wheel', handleWheel, { passive: false });
@@ -246,7 +267,7 @@ const App: React.FC = () => {
       window.removeEventListener('touchstart', onTouchStart);
       window.removeEventListener('touchmove', onTouchMove);
     };
-  }, []);
+  }, [inertiaEnabled]);
 
   // Visual Effects Calculations
   const normVelocity = Math.min(velocity / MAX_VELOCITY, 1);
