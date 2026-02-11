@@ -6,7 +6,7 @@ import { SplitRecord } from './types';
 const FRICTION = 0.96; 
 const GRAVITY = 0.8; 
 const SCROLL_MULTIPLIER = 1.0; 
-const MAX_VELOCITY = 150; // Visual normalization only (not a hard cap)
+const MAX_VELOCITY = 3000; // Visual normalization only (not a hard cap)
 // Conversion for Display
 const PX_TO_CM = 2.54 / 96;
 
@@ -27,10 +27,10 @@ const App: React.FC = () => {
   const [maxAccel, setMaxAccel] = useState(0); // m/s^2
   const [scrollCount, setScrollCount] = useState(0); // 回数
 
-  // 速度・加速度履歴
-  const speedHistory = useRef<number[]>([]);
-  const accelHistory = useRef<number[]>([]);
+  // 速度・加速度計測用
   const lastVelocity = useRef(0);
+  const lastTimeRef = useRef<number | null>(null);
+  const totalDistanceRef = useRef(0); // meters
   const lastScrollDir = useRef(0);
   const accelStreak = useRef(0);
   const maxAccelStreakSec = useRef(0);
@@ -53,18 +53,9 @@ const App: React.FC = () => {
   // Persistent loop for physics (Gravity & Friction)
   const animate = useCallback((time: number) => {
     // 1. Physics Calculations
-    // 速度履歴記録
-    const pxPerFrame = Math.abs(velocityRef.current);
-    speedHistory.current.push(pxPerFrame);
-    if (speedHistory.current.length > 3600) speedHistory.current.shift(); // 1分分程度
-
-    // 加速度計算
-    const pxPerSec = pxPerFrame * 60;
-    const lastPxPerSec = lastVelocity.current * 60;
-    const accelVal = (pxPerSec - lastPxPerSec) * 60 / 1000; // m/s^2相当（粗い）
-    accelHistory.current.push(Math.abs(accelVal));
-    if (accelHistory.current.length > 3600) accelHistory.current.shift();
-    lastVelocity.current = pxPerFrame;
+    const lastTime = lastTimeRef.current;
+    const dtSec = lastTime ? Math.max((time - lastTime) / 1000, 1 / 120) : 1 / 60;
+    lastTimeRef.current = time;
 
     // スクロール回数（方向変化でカウント）
     const dir = Math.sign(velocityRef.current);
@@ -74,8 +65,13 @@ const App: React.FC = () => {
     }
 
     // 連続加速時間
-    if (Math.abs(accelVal) > 0.1) {
-      accelStreak.current += 1/60;
+    const pxPerFrame = Math.abs(velocityRef.current);
+    const pxPerSec = pxPerFrame * 60;
+    const lastPxPerSec = lastVelocity.current * 60;
+    const accelVal = Math.abs(pxPerSec - lastPxPerSec) / dtSec; // px/s^2
+    lastVelocity.current = pxPerFrame;
+    if (accelVal > 10) {
+      accelStreak.current += dtSec;
       if (accelStreak.current > maxAccelStreakSec.current) maxAccelStreakSec.current = accelStreak.current;
     } else {
       accelStreak.current = 0;
@@ -103,6 +99,11 @@ const App: React.FC = () => {
             setRunTime(0);
             setSplits([]);
             passedMilestonesRef.current.clear();
+          totalDistanceRef.current = 0;
+          setAveSpeed(0);
+          setMaxSpeed(0);
+          setTotalDistance(0);
+          setMaxAccel(0);
         }
     } else {
         // Start Timer if just took off
@@ -110,6 +111,11 @@ const App: React.FC = () => {
             runStartTimeRef.current = time;
             passedMilestonesRef.current.clear();
             setSplits([]);
+          totalDistanceRef.current = 0;
+          setAveSpeed(0);
+          setMaxSpeed(0);
+          setTotalDistance(0);
+          setMaxAccel(0);
         }
     }
 
@@ -134,15 +140,23 @@ const App: React.FC = () => {
     setDepth(depthRef.current);
     setVelocity(Math.abs(velocityRef.current));
 
-    // 速度統計
-    const speeds = speedHistory.current;
-    const cmPerSecArr = speeds.map(px => px * PX_TO_CM * 60);
-    const ave = cmPerSecArr.length > 0 ? cmPerSecArr.reduce((a, b) => a + b, 0) / cmPerSecArr.length : 0;
-    const max = cmPerSecArr.length > 0 ? Math.max(...cmPerSecArr) : 0;
-    setAveSpeed(ave / 100); // m/s
-    setMaxSpeed(max / 100); // m/s
-    setTotalDistance((depthRef.current * PX_TO_CM) / 100);
-    setMaxAccel(accelHistory.current.length > 0 ? Math.max(...accelHistory.current) / 100 : 0);
+    // 距離・速度統計（実移動量ベース）
+    const frameDistancePx = Math.abs(velocityRef.current) * (dtSec * 60);
+    const frameDistanceM = (frameDistancePx * PX_TO_CM) / 100;
+    totalDistanceRef.current += frameDistanceM;
+
+    const currentSpeedMps = (pxPerSec * PX_TO_CM) / 100;
+    const currentAccelMps2 = (accelVal * PX_TO_CM) / 100;
+
+    setTotalDistance(totalDistanceRef.current);
+    setMaxSpeed(prev => Math.max(prev, currentSpeedMps));
+    setMaxAccel(prev => Math.max(prev, currentAccelMps2));
+
+    if (runStartTimeRef.current && runTime > 0) {
+      setAveSpeed(totalDistanceRef.current / (runTime / 1000));
+    } else {
+      setAveSpeed(0);
+    }
 
     // Check High Score
     if (depthRef.current > parseInt(localStorage.getItem('immovable_highscore_px') || '0', 10)) {
