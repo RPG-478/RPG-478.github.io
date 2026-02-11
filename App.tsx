@@ -219,7 +219,7 @@ const App: React.FC = () => {
     }
 
     requestRef.current = requestAnimationFrame(animate);
-  }, []);
+  }, [inertiaEnabled, pxToCm]);
 
   useEffect(() => {
     requestRef.current = requestAnimationFrame(animate);
