@@ -3,7 +3,7 @@ import { SplitRecord } from '../types';
 
 interface DepthMeterProps {
   depth: number; // In pixels
-  velocity: number; // In pixels per frame (approx)
+  currentSpeedMps: number; // m/s
   highScore: number; // In pixels
   runTime: number; // ms
   splits: SplitRecord[];
@@ -35,29 +35,22 @@ const formatTime = (ms: number): string => {
   return `${seconds}.${decimals.toString().padStart(2, '0')}s`;
 };
 
-const formatSpeed = (pxPerFrame: number, pxToCm: number): string => {
-  // Assume ~60 FPS for calculation
-  const cmPerFrame = pxPerFrame * pxToCm;
-  const cmPerSec = cmPerFrame * 60;
-  
+const formatSpeedMps = (mps: number): string => {
+  const cmPerSec = mps * 100;
   if (cmPerSec < 100) {
     return `${cmPerSec.toFixed(1)} cm/s`;
-  } else {
-    // m/s
-    return `${(cmPerSec / 100).toFixed(2)} m/s`;
   }
+  return `${mps.toFixed(2)} m/s`;
 };
 
-const formatKmh = (pxPerFrame: number, pxToCm: number): string => {
-  const cmPerFrame = pxPerFrame * pxToCm;
-  const cmPerSec = cmPerFrame * 60;
-  const kmh = (cmPerSec / 100000) * 3600;
+const formatKmhFromMps = (mps: number): string => {
+  const kmh = mps * 3.6;
   return `${kmh.toFixed(1)} km/h`;
 };
 
 export const DepthMeter: React.FC<DepthMeterProps> = ({
   depth,
-  velocity,
+  currentSpeedMps,
   highScore,
   runTime,
   splits,
@@ -100,8 +93,8 @@ export const DepthMeter: React.FC<DepthMeterProps> = ({
         {/* Speedometer */}
         <div className="flex items-center gap-2 mt-2 bg-black/60 backdrop-blur px-3 py-2 rounded-lg border-r-2 border-yellow-500">
            <div className="text-right">
-            <div className="text-xl text-yellow-400 font-bold leading-none">{formatSpeed(velocity, pxToCm)}</div>
-            <div className="text-[10px] text-yellow-600 leading-none mt-1">{formatKmh(velocity, pxToCm)}</div>
+            <div className="text-xl text-yellow-400 font-bold leading-none">{formatSpeedMps(currentSpeedMps)}</div>
+            <div className="text-[10px] text-yellow-600 leading-none mt-1">{formatKmhFromMps(currentSpeedMps)}</div>
            </div>
            <div className="text-xs text-gray-500 rotate-90 origin-center tracking-widest">SPD</div>
         </div>

@@ -27,6 +27,7 @@ const App: React.FC = () => {
   const [maxSpeed, setMaxSpeed] = useState(0); // m/s
   const [totalDistance, setTotalDistance] = useState(0); // m
   const [maxAccel, setMaxAccel] = useState(0); // m/s^2
+  const [currentSpeedMps, setCurrentSpeedMps] = useState(0); // m/s
   const [scrollCount, setScrollCount] = useState(0); // 回数
   const [viewportHeightPx, setViewportHeightPx] = useState(0);
   const [inertiaEnabled, setInertiaEnabled] = useState(true);
@@ -36,6 +37,7 @@ const App: React.FC = () => {
   const [autoPxPerCm, setAutoPxPerCm] = useState(DEFAULT_PX_PER_CM);
   const [calibratedPxPerCm, setCalibratedPxPerCm] = useState<number | null>(null);
   const [showCalibration, setShowCalibration] = useState(false);
+  const [titleToast, setTitleToast] = useState<string | null>(null);
 
   // 速度・加速度計測用
   const lastVelocity = useRef(0);
@@ -43,8 +45,9 @@ const App: React.FC = () => {
   const totalDistanceRef = useRef(0); // meters
   const inputDeltaRef = useRef(0);
   const lastScrollDir = useRef(0);
-  const accelStreak = useRef(0);
-  const maxAccelStreakSec = useRef(0);
+  const titleTimeoutRef = useRef<number | null>(null);
+  const unlockedTitlesRef = useRef<Set<string>>(new Set());
+  const lastThousandRef = useRef(0);
 
   // Refs for physics loop to avoid closure staleness
   const depthRef = useRef(0);
@@ -125,6 +128,47 @@ const App: React.FC = () => {
     localStorage.removeItem('immovable_calibrated_px_per_cm');
   }, []);
 
+  const showTitleToast = useCallback((label: string) => {
+    setTitleToast(label);
+    if (titleTimeoutRef.current !== null) {
+      window.clearTimeout(titleTimeoutRef.current);
+    }
+    titleTimeoutRef.current = window.setTimeout(() => {
+      setTitleToast(null);
+      titleTimeoutRef.current = null;
+    }, 2500);
+  }, []);
+
+  const checkTitleUnlocks = useCallback((currentM: number) => {
+    const unlockOnce = (key: string, label: string) => {
+      if (unlockedTitlesRef.current.has(key)) return;
+      unlockedTitlesRef.current.add(key);
+      showTitleToast(label);
+    };
+
+    if (currentM >= 77.7) unlockOnce('77.7', '77.7m通過');
+    if (currentM >= 100) unlockOnce('100', '100m通過');
+    if (currentM >= 500) unlockOnce('500', '500m通過');
+    if (currentM >= 10000) unlockOnce('10000', '10km通過');
+
+    const thousand = Math.floor(currentM / 1000);
+    if (thousand > lastThousandRef.current) {
+      for (let k = lastThousandRef.current + 1; k <= thousand; k += 1) {
+        if (k === 10) continue;
+        unlockOnce(`k${k}`, `${k}km通過`);
+      }
+      lastThousandRef.current = thousand;
+    }
+  }, [showTitleToast]);
+
+  useEffect(() => {
+    return () => {
+      if (titleTimeoutRef.current !== null) {
+        window.clearTimeout(titleTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Persistent loop for physics (Gravity & Friction)
   const animate = useCallback((time: number) => {
     // 1. Physics Calculations
@@ -151,13 +195,6 @@ const App: React.FC = () => {
     const lastPxPerSec = lastVelocity.current;
     const accelVal = Math.abs(pxPerSec - lastPxPerSec) / dtSec; // px/s^2
     lastVelocity.current = pxPerSec;
-    if (accelVal > 10) {
-      accelStreak.current += dtSec;
-      if (accelStreak.current > maxAccelStreakSec.current) maxAccelStreakSec.current = accelStreak.current;
-    } else {
-      accelStreak.current = 0;
-    }
-
     if (inertiaEnabled) {
       velocityRef.current *= FRICTION;
 
@@ -193,6 +230,10 @@ const App: React.FC = () => {
           setMaxSpeed(0);
           setTotalDistance(0);
           setMaxAccel(0);
+          setCurrentSpeedMps(0);
+          setTitleToast(null);
+          unlockedTitlesRef.current.clear();
+          lastThousandRef.current = 0;
         }
     } else {
         // Start Timer if just took off
@@ -216,6 +257,8 @@ const App: React.FC = () => {
 
         // Check Milestones
         const currentCm = depthRef.current * pxToCm;
+      const currentM = currentCm / 100;
+      checkTitleUnlocks(currentM);
         
         MILESTONES_CM.forEach(milestone => {
             if (currentCm >= milestone && !passedMilestonesRef.current.has(milestone)) {
@@ -237,6 +280,7 @@ const App: React.FC = () => {
     const currentSpeedMps = (pxPerSec * pxToCm) / 100;
     const currentAccelMps2 = (accelVal * pxToCm) / 100;
 
+    setCurrentSpeedMps(currentSpeedMps);
     setTotalDistance(totalDistanceRef.current);
     setMaxSpeed(prev => Math.max(prev, currentSpeedMps));
     setMaxAccel(prev => Math.max(prev, currentAccelMps2));
@@ -254,7 +298,7 @@ const App: React.FC = () => {
     }
 
     requestRef.current = requestAnimationFrame(animate);
-  }, [inertiaEnabled, pxToCm]);
+  }, [inertiaEnabled, pxToCm, checkTitleUnlocks]);
 
   useEffect(() => {
     requestRef.current = requestAnimationFrame(animate);
@@ -403,9 +447,15 @@ const App: React.FC = () => {
         />
       )}
 
+      {titleToast && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[90] px-4 py-2 rounded-full bg-black/80 border border-yellow-600 text-yellow-300 text-xs font-mono shadow-[0_0_16px_rgba(250,204,21,0.3)]">
+          TITLE UNLOCKED: {titleToast}
+        </div>
+      )}
+
       <DepthMeter 
         depth={depth} 
-        velocity={velocity}
+        currentSpeedMps={currentSpeedMps}
         highScore={highScore} 
         runTime={runTime}
         splits={splits}
