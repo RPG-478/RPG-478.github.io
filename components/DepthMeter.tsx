@@ -12,13 +12,13 @@ interface DepthMeterProps {
   totalDistance: number; // m
   maxAccel: number; // m/s^2
   scrollCount: number;
+  pxToCm: number;
+  screenHeightCm: number;
+  onScreenHeightCmChange: (value: number) => void;
 }
 
-// Standard web approximation: 96 CSS pixels = 1 inch = 2.54 cm
-const PX_TO_CM = 2.54 / 96;
-
-const formatDistance = (pixels: number): string => {
-  const cm = pixels * PX_TO_CM;
+const formatDistance = (pixels: number, pxToCm: number): string => {
+  const cm = pixels * pxToCm;
   if (cm < 100) {
     return `${cm.toFixed(1)} cm`;
   } else {
@@ -32,9 +32,9 @@ const formatTime = (ms: number): string => {
   return `${seconds}.${decimals.toString().padStart(2, '0')}s`;
 };
 
-const formatSpeed = (pxPerFrame: number): string => {
+const formatSpeed = (pxPerFrame: number, pxToCm: number): string => {
   // Assume ~60 FPS for calculation
-  const cmPerFrame = pxPerFrame * PX_TO_CM;
+  const cmPerFrame = pxPerFrame * pxToCm;
   const cmPerSec = cmPerFrame * 60;
   
   if (cmPerSec < 100) {
@@ -45,30 +45,44 @@ const formatSpeed = (pxPerFrame: number): string => {
   }
 };
 
-const formatKmh = (pxPerFrame: number): string => {
-  const cmPerFrame = pxPerFrame * PX_TO_CM;
+const formatKmh = (pxPerFrame: number, pxToCm: number): string => {
+  const cmPerFrame = pxPerFrame * pxToCm;
   const cmPerSec = cmPerFrame * 60;
   const kmh = (cmPerSec / 100000) * 3600;
   return `${kmh.toFixed(1)} km/h`;
 };
 
-export const DepthMeter: React.FC<DepthMeterProps> = ({ depth, velocity, highScore, runTime, splits, aveSpeed, maxSpeed, totalDistance, maxAccel, scrollCount }) => {
+export const DepthMeter: React.FC<DepthMeterProps> = ({
+  depth,
+  velocity,
+  highScore,
+  runTime,
+  splits,
+  aveSpeed,
+  maxSpeed,
+  totalDistance,
+  maxAccel,
+  scrollCount,
+  pxToCm,
+  screenHeightCm,
+  onScreenHeightCmChange
+}) => {
   return (
     <>
       {/* LEFT HUD: Depth & Record */}
       <div className="fixed top-4 left-4 z-50 font-mono text-sm md:text-base pointer-events-none select-none">
         <div className="flex flex-col gap-1">
           <div className="bg-black/80 border border-red-500 text-red-500 px-3 py-1 rounded shadow-[0_0_10px_rgba(239,68,68,0.3)]">
-            DEPTH: {formatDistance(depth)}
+            DEPTH: {formatDistance(depth, pxToCm)}
           </div>
           <div className="bg-black/80 border border-gray-600 text-gray-400 px-3 py-1 rounded text-xs">
-            BEST: {formatDistance(highScore)}
+            BEST: {formatDistance(highScore, pxToCm)}
           </div>
         </div>
       </div>
 
         {/* RIGHT HUD: Speed, Time, Splits, Stats */}
-        <div className="fixed top-4 right-4 z-50 flex flex-col items-end gap-2 font-mono pointer-events-none select-none">
+        <div className="fixed top-4 right-4 z-50 flex flex-col items-end gap-2 font-mono select-none">
         {/* Timer */}
         <div className="flex flex-col items-end">
           <div className="text-xs text-gray-500 mb-1">RUN TIME</div>
@@ -80,8 +94,8 @@ export const DepthMeter: React.FC<DepthMeterProps> = ({ depth, velocity, highSco
         {/* Speedometer */}
         <div className="flex items-center gap-2 mt-2 bg-black/60 backdrop-blur px-3 py-2 rounded-lg border-r-2 border-yellow-500">
            <div className="text-right">
-           <div className="text-xl text-yellow-400 font-bold leading-none">{formatSpeed(velocity)}</div>
-           <div className="text-[10px] text-yellow-600 leading-none mt-1">{formatKmh(velocity)}</div>
+            <div className="text-xl text-yellow-400 font-bold leading-none">{formatSpeed(velocity, pxToCm)}</div>
+            <div className="text-[10px] text-yellow-600 leading-none mt-1">{formatKmh(velocity, pxToCm)}</div>
            </div>
            <div className="text-xs text-gray-500 rotate-90 origin-center tracking-widest">SPD</div>
         </div>
@@ -93,6 +107,24 @@ export const DepthMeter: React.FC<DepthMeterProps> = ({ depth, velocity, highSco
           <div className="flex justify-between"><span>TOTAL DIST</span><span className="font-mono">{totalDistance.toFixed(2)} m</span></div>
           <div className="flex justify-between"><span>MAX ACCEL</span><span className="font-mono">{maxAccel.toFixed(2)} m/s²</span></div>
           <div className="flex justify-between"><span>SCROLL COUNT</span><span className="font-mono">{scrollCount}</span></div>
+        </div>
+
+        <div className="mt-2 bg-black/70 px-3 py-2 rounded-lg border border-gray-700 text-xs min-w-[160px] pointer-events-auto">
+          <div className="flex items-center justify-between gap-2">
+            <span>SCREEN H</span>
+            <div className="flex items-center gap-1">
+              <input
+                className="w-16 bg-black/70 border border-gray-600 rounded px-2 py-1 text-right"
+                type="number"
+                min={5}
+                max={50}
+                step={0.5}
+                value={Number.isFinite(screenHeightCm) ? screenHeightCm : 15}
+                onChange={(e) => onScreenHeightCmChange(parseFloat(e.target.value))}
+              />
+              <span>cm</span>
+            </div>
+          </div>
         </div>
 
         {/* Splits / Laps */}

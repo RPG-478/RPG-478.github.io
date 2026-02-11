@@ -7,8 +7,9 @@ const FRICTION = 0.96;
 const GRAVITY = 0.8; 
 const SCROLL_MULTIPLIER = 1.0; 
 const MAX_VELOCITY = 3000; // Visual normalization only (not a hard cap)
-// Conversion for Display
-const PX_TO_CM = 2.54 / 96;
+// Fallback conversion for display if no calibration is available
+const DEFAULT_PX_TO_CM = 2.54 / 96;
+const DEFAULT_SCREEN_HEIGHT_CM = 15;
 
 // Milestones for splits (in cm)
 const MILESTONES_CM = [100, 500, 1000, 5000, 10000]; // 1m, 5m, 10m, 50m, 100m
@@ -26,6 +27,8 @@ const App: React.FC = () => {
   const [totalDistance, setTotalDistance] = useState(0); // m
   const [maxAccel, setMaxAccel] = useState(0); // m/s^2
   const [scrollCount, setScrollCount] = useState(0); // 回数
+  const [screenHeightCm, setScreenHeightCm] = useState(DEFAULT_SCREEN_HEIGHT_CM);
+  const [viewportHeightPx, setViewportHeightPx] = useState(0);
 
   // 速度・加速度計測用
   const lastVelocity = useRef(0);
@@ -50,6 +53,30 @@ const App: React.FC = () => {
     if (saved) setHighScore(parseInt(saved, 10));
   }, []);
 
+  useEffect(() => {
+    const saved = localStorage.getItem('immovable_screen_height_cm');
+    if (saved) setScreenHeightCm(parseFloat(saved));
+  }, []);
+
+  useEffect(() => {
+    const updateViewport = () => setViewportHeightPx(window.innerHeight || 0);
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+    return () => window.removeEventListener('resize', updateViewport);
+  }, []);
+
+  const pxToCm = useMemo(() => {
+    if (viewportHeightPx > 0) return screenHeightCm / viewportHeightPx;
+    return DEFAULT_PX_TO_CM;
+  }, [screenHeightCm, viewportHeightPx]);
+
+  const handleScreenHeightChange = useCallback((value: number) => {
+    if (!Number.isFinite(value)) return;
+    const clamped = Math.min(Math.max(value, 5), 50);
+    setScreenHeightCm(clamped);
+    localStorage.setItem('immovable_screen_height_cm', clamped.toString());
+  }, []);
+
   // Persistent loop for physics (Gravity & Friction)
   const animate = useCallback((time: number) => {
     // 1. Physics Calculations
@@ -66,10 +93,10 @@ const App: React.FC = () => {
 
     // 連続加速時間
     const pxPerFrame = Math.abs(velocityRef.current);
-    const pxPerSec = pxPerFrame * 60;
-    const lastPxPerSec = lastVelocity.current * 60;
+    const pxPerSec = pxPerFrame / dtSec;
+    const lastPxPerSec = lastVelocity.current;
     const accelVal = Math.abs(pxPerSec - lastPxPerSec) / dtSec; // px/s^2
-    lastVelocity.current = pxPerFrame;
+    lastVelocity.current = pxPerSec;
     if (accelVal > 10) {
       accelStreak.current += dtSec;
       if (accelStreak.current > maxAccelStreakSec.current) maxAccelStreakSec.current = accelStreak.current;
@@ -126,7 +153,7 @@ const App: React.FC = () => {
         setRunTime(currentRunTime);
 
         // Check Milestones
-        const currentCm = depthRef.current * PX_TO_CM;
+        const currentCm = depthRef.current * pxToCm;
         
         MILESTONES_CM.forEach(milestone => {
             if (currentCm >= milestone && !passedMilestonesRef.current.has(milestone)) {
@@ -141,19 +168,19 @@ const App: React.FC = () => {
     setVelocity(Math.abs(velocityRef.current));
 
     // 距離・速度統計（実移動量ベース）
-    const frameDistancePx = Math.abs(velocityRef.current) * (dtSec * 60);
-    const frameDistanceM = (frameDistancePx * PX_TO_CM) / 100;
+    const frameDistancePx = Math.abs(velocityRef.current);
+    const frameDistanceM = (frameDistancePx * pxToCm) / 100;
     totalDistanceRef.current += frameDistanceM;
 
-    const currentSpeedMps = (pxPerSec * PX_TO_CM) / 100;
-    const currentAccelMps2 = (accelVal * PX_TO_CM) / 100;
+    const currentSpeedMps = (pxPerSec * pxToCm) / 100;
+    const currentAccelMps2 = (accelVal * pxToCm) / 100;
 
     setTotalDistance(totalDistanceRef.current);
     setMaxSpeed(prev => Math.max(prev, currentSpeedMps));
     setMaxAccel(prev => Math.max(prev, currentAccelMps2));
 
-    if (runStartTimeRef.current && runTime > 0) {
-      setAveSpeed(totalDistanceRef.current / (runTime / 1000));
+    if (runStartTimeRef.current && currentRunTime > 0) {
+      setAveSpeed(totalDistanceRef.current / (currentRunTime / 1000));
     } else {
       setAveSpeed(0);
     }
@@ -298,6 +325,9 @@ const App: React.FC = () => {
         totalDistance={totalDistance}
         maxAccel={maxAccel}
         scrollCount={scrollCount}
+        pxToCm={pxToCm}
+        screenHeightCm={screenHeightCm}
+        onScreenHeightCmChange={handleScreenHeightChange}
       />
 
       {/* Main Content Container */}
