@@ -30,6 +30,7 @@ const App: React.FC = () => {
   const [screenHeightCm, setScreenHeightCm] = useState(DEFAULT_SCREEN_HEIGHT_CM);
   const [viewportHeightPx, setViewportHeightPx] = useState(0);
   const [inertiaEnabled, setInertiaEnabled] = useState(true);
+  const [distanceScale, setDistanceScale] = useState(1);
 
   // 速度・加速度計測用
   const lastVelocity = useRef(0);
@@ -61,6 +62,11 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const saved = localStorage.getItem('immovable_distance_scale');
+    if (saved) setDistanceScale(parseFloat(saved));
+  }, []);
+
+  useEffect(() => {
     const saved = localStorage.getItem('immovable_inertia_enabled');
     if (saved === 'true' || saved === 'false') {
       setInertiaEnabled(saved === 'true');
@@ -72,6 +78,11 @@ const App: React.FC = () => {
   }, [inertiaEnabled]);
 
   useEffect(() => {
+    if (!Number.isFinite(distanceScale)) return;
+    localStorage.setItem('immovable_distance_scale', distanceScale.toString());
+  }, [distanceScale]);
+
+  useEffect(() => {
     const updateViewport = () => setViewportHeightPx(window.innerHeight || 0);
     updateViewport();
     window.addEventListener('resize', updateViewport);
@@ -79,15 +90,21 @@ const App: React.FC = () => {
   }, []);
 
   const pxToCm = useMemo(() => {
-    if (viewportHeightPx > 0) return screenHeightCm / viewportHeightPx;
+    if (viewportHeightPx > 0) return (screenHeightCm / viewportHeightPx) * distanceScale;
     return DEFAULT_PX_TO_CM;
-  }, [screenHeightCm, viewportHeightPx]);
+  }, [screenHeightCm, viewportHeightPx, distanceScale]);
 
   const handleScreenHeightChange = useCallback((value: number) => {
     if (!Number.isFinite(value)) return;
     const clamped = Math.min(Math.max(value, 5), 50);
     setScreenHeightCm(clamped);
     localStorage.setItem('immovable_screen_height_cm', clamped.toString());
+  }, []);
+
+  const handleDistanceScaleChange = useCallback((value: number) => {
+    if (!Number.isFinite(value)) return;
+    const clamped = Math.min(Math.max(value, 0.2), 5);
+    setDistanceScale(clamped);
   }, []);
 
   // Persistent loop for physics (Gravity & Friction)
@@ -367,6 +384,8 @@ const App: React.FC = () => {
         onScreenHeightCmChange={handleScreenHeightChange}
         inertiaEnabled={inertiaEnabled}
         onInertiaEnabledChange={setInertiaEnabled}
+        distanceScale={distanceScale}
+        onDistanceScaleChange={handleDistanceScaleChange}
       />
 
       {/* Main Content Container */}

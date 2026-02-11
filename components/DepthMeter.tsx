@@ -17,6 +17,8 @@ interface DepthMeterProps {
   onScreenHeightCmChange: (value: number) => void;
   inertiaEnabled: boolean;
   onInertiaEnabledChange: (value: boolean) => void;
+  distanceScale: number;
+  onDistanceScaleChange: (value: number) => void;
 }
 
 const formatDistance = (pixels: number, pxToCm: number): string => {
@@ -69,7 +71,9 @@ export const DepthMeter: React.FC<DepthMeterProps> = ({
   screenHeightCm,
   onScreenHeightCmChange,
   inertiaEnabled,
-  onInertiaEnabledChange
+  onInertiaEnabledChange,
+  distanceScale,
+  onDistanceScaleChange
 }) => {
   return (
     <>
@@ -127,6 +131,21 @@ export const DepthMeter: React.FC<DepthMeterProps> = ({
                 onChange={(e) => onScreenHeightCmChange(parseFloat(e.target.value))}
               />
               <span>cm</span>
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span>DIST SCALE</span>
+            <div className="flex items-center gap-1">
+              <input
+                className="w-16 bg-black/70 border border-gray-600 rounded px-2 py-1 text-right"
+                type="number"
+                min={0.2}
+                max={5}
+                step={0.1}
+                value={Number.isFinite(distanceScale) ? distanceScale : 1}
+                onChange={(e) => onDistanceScaleChange(parseFloat(e.target.value))}
+              />
+              <span>x</span>
             </div>
           </div>
           <label className="flex items-center justify-between gap-2">
