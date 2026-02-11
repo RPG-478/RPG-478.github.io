@@ -15,6 +15,8 @@ interface DepthMeterProps {
   pxToCm: number;
   screenHeightCm: number;
   onScreenHeightCmChange: (value: number) => void;
+  inertiaEnabled: boolean;
+  onInertiaEnabledChange: (value: boolean) => void;
 }
 
 const formatDistance = (pixels: number, pxToCm: number): string => {
@@ -65,7 +67,9 @@ export const DepthMeter: React.FC<DepthMeterProps> = ({
   scrollCount,
   pxToCm,
   screenHeightCm,
-  onScreenHeightCmChange
+  onScreenHeightCmChange,
+  inertiaEnabled,
+  onInertiaEnabledChange
 }) => {
   return (
     <>
@@ -109,7 +113,7 @@ export const DepthMeter: React.FC<DepthMeterProps> = ({
           <div className="flex justify-between"><span>SCROLL COUNT</span><span className="font-mono">{scrollCount}</span></div>
         </div>
 
-        <div className="mt-2 bg-black/70 px-3 py-2 rounded-lg border border-gray-700 text-xs min-w-[160px] pointer-events-auto">
+        <div className="mt-2 bg-black/70 px-3 py-2 rounded-lg border border-gray-700 text-xs min-w-[160px] pointer-events-auto flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
             <span>SCREEN H</span>
             <div className="flex items-center gap-1">
@@ -125,6 +129,14 @@ export const DepthMeter: React.FC<DepthMeterProps> = ({
               <span>cm</span>
             </div>
           </div>
+          <label className="flex items-center justify-between gap-2">
+            <span>INERTIA</span>
+            <input
+              type="checkbox"
+              checked={inertiaEnabled}
+              onChange={(e) => onInertiaEnabledChange(e.target.checked)}
+            />
+          </label>
         </div>
 
         {/* Splits / Laps */}

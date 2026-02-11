@@ -29,6 +29,7 @@ const App: React.FC = () => {
   const [scrollCount, setScrollCount] = useState(0); // 回数
   const [screenHeightCm, setScreenHeightCm] = useState(DEFAULT_SCREEN_HEIGHT_CM);
   const [viewportHeightPx, setViewportHeightPx] = useState(0);
+  const [inertiaEnabled, setInertiaEnabled] = useState(true);
 
   // 速度・加速度計測用
   const lastVelocity = useRef(0);
@@ -57,6 +58,17 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('immovable_screen_height_cm');
     if (saved) setScreenHeightCm(parseFloat(saved));
   }, []);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('immovable_inertia_enabled');
+    if (saved === 'true' || saved === 'false') {
+      setInertiaEnabled(saved === 'true');
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('immovable_inertia_enabled', inertiaEnabled ? 'true' : 'false');
+  }, [inertiaEnabled]);
 
   useEffect(() => {
     const updateViewport = () => setViewportHeightPx(window.innerHeight || 0);
@@ -114,6 +126,10 @@ const App: React.FC = () => {
     }
 
     depthRef.current += velocityRef.current;
+
+    if (!inertiaEnabled) {
+      velocityRef.current = 0;
+    }
 
     // Hard floor / Reset
     if (depthRef.current <= 0) {
@@ -328,6 +344,8 @@ const App: React.FC = () => {
         pxToCm={pxToCm}
         screenHeightCm={screenHeightCm}
         onScreenHeightCmChange={handleScreenHeightChange}
+        inertiaEnabled={inertiaEnabled}
+        onInertiaEnabledChange={setInertiaEnabled}
       />
 
       {/* Main Content Container */}
