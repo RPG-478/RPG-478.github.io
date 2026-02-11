@@ -8,6 +8,8 @@ const FRICTION = 0.96;
 const GRAVITY = 0.8; 
 const GRAVITY_DEPTH_SCALE = 0.0001;
 const GRAVITY_MAX = 3.0;
+const IDLE_GRAVITY_DELAY_MS = 2000;
+const MOVING_EPS = 0.1;
 const SCROLL_MULTIPLIER = 1.0; 
 const DEFAULT_LINE_HEIGHT_PX = 16;
 const MAX_VELOCITY = 3000; // Visual normalization only (not a hard cap)
@@ -50,6 +52,7 @@ const App: React.FC = () => {
   const titleTimeoutRef = useRef<number | null>(null);
   const unlockedTitlesRef = useRef<Set<string>>(new Set());
   const lastThousandRef = useRef(0);
+  const lastMoveTimeRef = useRef<number | null>(null);
 
   // Refs for physics loop to avoid closure staleness
   const depthRef = useRef(0);
@@ -197,17 +200,25 @@ const App: React.FC = () => {
     const lastPxPerSec = lastVelocity.current;
     const accelVal = Math.abs(pxPerSec - lastPxPerSec) / dtSec; // px/s^2
     lastVelocity.current = pxPerSec;
+    const isMoving = Math.abs(velocityRef.current) > MOVING_EPS || Math.abs(directDelta) > MOVING_EPS;
+    if (isMoving) {
+      lastMoveTimeRef.current = time;
+    }
+
+    const idleMs = lastMoveTimeRef.current === null ? 0 : time - lastMoveTimeRef.current;
+    const allowGravity = idleMs >= IDLE_GRAVITY_DELAY_MS;
+
     if (inertiaEnabled) {
       velocityRef.current *= FRICTION;
 
       // Gravity logic
-      if (depthRef.current > 0) {
-          const dynamicGravity = Math.min(
-            GRAVITY + (depthRef.current * GRAVITY_DEPTH_SCALE),
-            GRAVITY_MAX
-          );
-          depthRef.current -= dynamicGravity;
-          if (depthRef.current < 0) depthRef.current = 0;
+      if (allowGravity && depthRef.current > 0) {
+        const dynamicGravity = Math.min(
+          GRAVITY + (depthRef.current * GRAVITY_DEPTH_SCALE),
+          GRAVITY_MAX
+        );
+        depthRef.current -= dynamicGravity;
+        if (depthRef.current < 0) depthRef.current = 0;
       }
 
       depthRef.current += velocityRef.current;
@@ -217,6 +228,15 @@ const App: React.FC = () => {
         if (depthRef.current < 0) depthRef.current = 0;
       }
       if (directDelta === 0) velocityRef.current = 0;
+
+      if (allowGravity && depthRef.current > 0) {
+        const dynamicGravity = Math.min(
+          GRAVITY + (depthRef.current * GRAVITY_DEPTH_SCALE),
+          GRAVITY_MAX
+        );
+        depthRef.current -= dynamicGravity;
+        if (depthRef.current < 0) depthRef.current = 0;
+      }
     }
 
     // Hard floor / Reset
@@ -239,6 +259,7 @@ const App: React.FC = () => {
           setTitleToast(null);
           unlockedTitlesRef.current.clear();
           lastThousandRef.current = 0;
+          lastMoveTimeRef.current = null;
         }
     } else {
         // Start Timer if just took off
