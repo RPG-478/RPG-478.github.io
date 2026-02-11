@@ -6,6 +6,8 @@ import { SplitRecord } from './types';
 // Constants for physics
 const FRICTION = 0.96; 
 const GRAVITY = 0.8; 
+const GRAVITY_DEPTH_SCALE = 0.0001;
+const GRAVITY_MAX = 3.0;
 const SCROLL_MULTIPLIER = 1.0; 
 const DEFAULT_LINE_HEIGHT_PX = 16;
 const MAX_VELOCITY = 3000; // Visual normalization only (not a hard cap)
@@ -200,7 +202,10 @@ const App: React.FC = () => {
 
       // Gravity logic
       if (depthRef.current > 0) {
-          const dynamicGravity = GRAVITY + (depthRef.current * 0.0005);
+          const dynamicGravity = Math.min(
+            GRAVITY + (depthRef.current * GRAVITY_DEPTH_SCALE),
+            GRAVITY_MAX
+          );
           depthRef.current -= dynamicGravity;
           if (depthRef.current < 0) depthRef.current = 0;
       }
