@@ -523,6 +523,15 @@ const App: React.FC = () => {
       <div className="absolute bottom-8 text-gray-600 font-mono text-xs animate-bounce opacity-50">
          ▼ SCROLL TO PROVE EXISTENCE ▼
       </div>
+
+      {/* Footer Links */}
+      <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-3 text-[10px] font-mono text-gray-700 z-20 pointer-events-auto">
+        <a href="/guide.html" target="_blank" rel="noopener" className="hover:text-gray-400 transition-colors">GUIDE</a>
+        <span>|</span>
+        <a href="/terms.html" target="_blank" rel="noopener" className="hover:text-gray-400 transition-colors">TERMS</a>
+        <span>|</span>
+        <a href="/privacy.html" target="_blank" rel="noopener" className="hover:text-gray-400 transition-colors">PRIVACY</a>
+      </div>
       
     </div>
   );

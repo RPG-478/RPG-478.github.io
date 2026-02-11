@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>使い方ガイド | The Immovable Scroll</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0a0a;color:#d4d4d8;font-family:'Segoe UI','Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;line-height:1.8;padding:2rem 1rem}
+  .wrap{max-width:720px;margin:0 auto}
+  h1{font-size:1.6rem;color:#e4e4e7;border-bottom:1px solid #27272a;padding-bottom:.5rem;margin-bottom:1.5rem}
+  h2{font-size:1.15rem;color:#a1a1aa;margin:2rem 0 .5rem;padding-left:.5rem;border-left:3px solid #3f3f46}
+  h3{font-size:1rem;color:#a1a1aa;margin:1rem 0 .3rem}
+  p,li{font-size:.92rem;color:#a1a1aa;margin-bottom:.5rem}
+  ul,ol{padding-left:1.2rem;margin-bottom:1rem}
+  a{color:#60a5fa;text-decoration:none}a:hover{text-decoration:underline}
+  .lang-switch{text-align:right;margin-bottom:1rem;font-size:.85rem}
+  .lang-switch button{background:#18181b;border:1px solid #3f3f46;color:#a1a1aa;padding:.3rem .8rem;border-radius:4px;cursor:pointer;margin-left:.3rem;font-size:.82rem}
+  .lang-switch button.active{color:#e4e4e7;border-color:#60a5fa}
+  .section-en{display:none}
+  .back{display:inline-block;margin-top:2rem;font-size:.85rem}
+  .updated{font-size:.8rem;color:#52525b;margin-bottom:1.5rem}
+  code{background:#18181b;padding:.15rem .4rem;border-radius:3px;font-size:.85rem;color:#a78bfa}
+  .tip{background:#1a1a2e;border:1px solid #27272a;border-radius:6px;padding:1rem;margin:1rem 0;font-size:.9rem}
+  .tip strong{color:#fbbf24}
+  kbd{background:#27272a;border:1px solid #3f3f46;border-radius:3px;padding:.1rem .4rem;font-size:.82rem;color:#e4e4e7;font-family:inherit}
+  .feat{display:grid;grid-template-columns:auto 1fr;gap:.3rem 1rem;margin:1rem 0}
+  .feat dt{color:#e4e4e7;font-weight:600;font-size:.9rem;white-space:nowrap}
+  .feat dd{color:#a1a1aa;font-size:.9rem}
+  .mode-box{display:flex;gap:1rem;margin:1rem 0;flex-wrap:wrap}
+  .mode-card{flex:1;min-width:220px;background:#18181b;border:1px solid #27272a;border-radius:8px;padding:1rem}
+  .mode-card h3{margin:0 0 .5rem;color:#e4e4e7;font-size:1rem}
+  .mode-card p{margin:0;font-size:.85rem}
+</style>
+<script>
+function switchLang(lang){
+  document.querySelectorAll('.section-ja').forEach(el=>el.style.display=lang==='ja'?'block':'none');
+  document.querySelectorAll('.section-en').forEach(el=>el.style.display=lang==='en'?'block':'none');
+  document.querySelectorAll('.lang-switch button').forEach(b=>b.classList.toggle('active',b.dataset.lang===lang));
+}
+</script>
+</head>
+<body>
+<div class="wrap">
+
+<div class="lang-switch">
+  <button class="active" data-lang="ja" onclick="switchLang('ja')">日本語</button>
+  <button data-lang="en" onclick="switchLang('en')">English</button>
+</div>
+
+<!-- ==================== 日本語 ==================== -->
+<div class="section-ja">
+<h1>使い方ガイド</h1>
+<p class="updated">最終更新日: 2026年2月11日</p>
+
+<h2>The Immovable Scroll とは？</h2>
+<p>スクロールで「深さ」を稼ぐブラウザゲームです。どこまで深く潜れるか、挑戦してみましょう。ただし――重力があなたを引き戻します。</p>
+
+<h2>基本操作</h2>
+
+<h3>🖱 PC（マウスホイール）</h3>
+<ul>
+  <li><kbd>ホイール↓</kbd> で下方向へスクロール → 深く潜る</li>
+  <li><kbd>ホイール↑</kbd> で上方向へスクロール → 浮上する</li>
+</ul>
+
+<h3>📱 スマートフォン（タッチ操作）</h3>
+<ul>
+  <li><strong>上にスワイプ</strong> → 深く潜る</li>
+  <li><strong>下にスワイプ</strong> → 浮上する</li>
+</ul>
+
+<h2>2つのモード</h2>
+<p>画面のSTATSパネルにある <strong>INERTIA</strong> トグルで切り替えられます。</p>
+
+<div class="mode-box">
+  <div class="mode-card">
+    <h3>🎮 慣性モード（INERTIA: ON）</h3>
+    <p>スクロールに勢いがつき、摩擦で減速します。ゲームとして楽しむモード。止まってから2秒後に重力で引き戻されます。</p>
+  </div>
+  <div class="mode-card">
+    <h3>📏 ダイレクトモード（INERTIA: OFF）</h3>
+    <p>スクロール量がそのまま距離に反映されます。物理的な距離を計測したいときに。止まってから2秒後に重力が作用します。</p>
+  </div>
+</div>
+
+<h2>画面の見方</h2>
+<dl class="feat">
+  <dt>DEPTH</dt>
+  <dd>現在の深さ（cm / m 表示）</dd>
+  <dt>SPEED</dt>
+  <dd>現在の速度（m/s と km/h）</dd>
+  <dt>HIGH SCORE</dt>
+  <dd>過去最大深度</dd>
+  <dt>TIME</dt>
+  <dd>今回の潜行時間</dd>
+  <dt>AVE SPEED</dt>
+  <dd>平均速度</dd>
+  <dt>MAX SPEED</dt>
+  <dd>最高速度</dd>
+  <dt>TOTAL DIST</dt>
+  <dd>累計移動距離</dd>
+  <dt>MAX ACCEL</dt>
+  <dd>最大加速度</dd>
+  <dt>SCROLL COUNT</dt>
+  <dd>方向転換の回数</dd>
+  <dt>ベロシティバー</dt>
+  <dd>画面下部のゲージ。速度に応じて伸び、色が変化します</dd>
+</dl>
+
+<h2>キャリブレーション（距離補正）</h2>
+<p>より正確な距離を表示するため、画面サイズの補正ができます。</p>
+<ol>
+  <li>STATSパネルの <strong>CALIBRATE</strong> ボタンをタップ</li>
+  <li>「定規モード」か「コインモード」を選択
+    <ul>
+      <li><strong>定規モード:</strong> 画面に表示された5cmの線を、実際の定規に合わせてスライダーで調整</li>
+      <li><strong>コインモード:</strong> 日本の硬貨（1円〜500円）を画面に当て、円のサイズを合わせる</li>
+    </ul>
+  </li>
+  <li>「この設定で確定」を押す</li>
+</ol>
+<p>補正値はブラウザに保存されます。リセットしたい場合は <strong>RESET</strong> ボタンをタップしてください。</p>
+
+<div class="tip">
+  <strong>💡 ヒント:</strong> キャリブレーションをしなくても、ブラウザの CSS 単位から自動推定した値で距離を表示します。多くの場合、そのままでも十分な精度です。
+</div>
+
+<h2>隠し称号</h2>
+<p>特定の深度に到達すると、称号が解放されます。何種類あるかは…潜ってからのお楽しみ。</p>
+
+<div class="tip">
+  <strong>💡 ヒント:</strong> 77.7m は何かが起こるかもしれません。
+</div>
+
+<h2>重力システム</h2>
+<ul>
+  <li>スクロール中は重力がかかりません。自由に進めます。</li>
+  <li>手を止めて <strong>2秒</strong> 経過すると、重力であなたの深度がゆっくり引き戻されます。</li>
+  <li>深くなるほど重力も強くなります。</li>
+  <li>深度が 0 に戻ると、タイマーと記録はリセットされます。</li>
+</ul>
+
+<h2>よくある質問</h2>
+
+<h3>Q. データはサーバーに送られますか？</h3>
+<p>いいえ。すべてのデータはお使いのブラウザ内だけに保存されます。詳しくは<a href="/privacy.html">プライバシーポリシー</a>をご確認ください。</p>
+
+<h3>Q. スマホで動きますか？</h3>
+<p>はい。Chrome / Safari の最新版を推奨します。タッチ操作に対応しています。</p>
+
+<h3>Q. 記録をリセットしたいです</h3>
+<p>ブラウザの設定から本サイトのデータを削除するか、開発者ツール → Application → Local Storage から対象のキーを削除してください。</p>
+
+<a class="back" href="/">← ゲームに戻る</a>
+</div>
+
+<!-- ==================== English ==================== -->
+<div class="section-en">
+<h1>How to Play</h1>
+<p class="updated">Last updated: February 11, 2026</p>
+
+<h2>What is The Immovable Scroll?</h2>
+<p>A browser game where you scroll to gain "depth." How deep can you go? Beware — gravity will pull you back.</p>
+
+<h2>Controls</h2>
+
+<h3>🖱 PC (Mouse Wheel)</h3>
+<ul>
+  <li><kbd>Scroll Down</kbd> → Descend deeper</li>
+  <li><kbd>Scroll Up</kbd> → Ascend</li>
+</ul>
+
+<h3>📱 Mobile (Touch)</h3>
+<ul>
+  <li><strong>Swipe Up</strong> → Descend deeper</li>
+  <li><strong>Swipe Down</strong> → Ascend</li>
+</ul>
+
+<h2>Two Modes</h2>
+<p>Toggle using the <strong>INERTIA</strong> switch in the STATS panel.</p>
+
+<div class="mode-box">
+  <div class="mode-card">
+    <h3>🎮 Inertia Mode (ON)</h3>
+    <p>Scrolling builds momentum; friction slows you down. The game mode. Gravity kicks in after 2 seconds of inactivity.</p>
+  </div>
+  <div class="mode-card">
+    <h3>📏 Direct Mode (OFF)</h3>
+    <p>Scroll distance maps 1:1 to depth. Use for physical distance measurement. Gravity activates after 2 seconds idle.</p>
+  </div>
+</div>
+
+<h2>HUD Elements</h2>
+<dl class="feat">
+  <dt>DEPTH</dt>
+  <dd>Current depth (cm / m)</dd>
+  <dt>SPEED</dt>
+  <dd>Current speed (m/s and km/h)</dd>
+  <dt>HIGH SCORE</dt>
+  <dd>Maximum depth ever reached</dd>
+  <dt>TIME</dt>
+  <dd>Current run duration</dd>
+  <dt>AVE SPEED</dt>
+  <dd>Average speed</dd>
+  <dt>MAX SPEED</dt>
+  <dd>Maximum speed reached</dd>
+  <dt>TOTAL DIST</dt>
+  <dd>Total distance traveled</dd>
+  <dt>MAX ACCEL</dt>
+  <dd>Maximum acceleration</dd>
+  <dt>SCROLL COUNT</dt>
+  <dd>Number of direction changes</dd>
+  <dt>Velocity Bar</dt>
+  <dd>Bar at bottom that fills and changes color with speed</dd>
+</dl>
+
+<h2>Calibration</h2>
+<p>Calibrate your screen for more accurate distance display.</p>
+<ol>
+  <li>Tap <strong>CALIBRATE</strong> in the STATS panel</li>
+  <li>Choose "Ruler" or "Coin" mode
+    <ul>
+      <li><strong>Ruler:</strong> Match the on-screen 5cm line to a physical ruler using the slider</li>
+      <li><strong>Coin:</strong> Match a Japanese coin (¥1–¥500) against the on-screen circle</li>
+    </ul>
+  </li>
+  <li>Tap "Confirm"</li>
+</ol>
+<p>The calibration value is saved in your browser. Tap <strong>RESET</strong> to clear it.</p>
+
+<div class="tip">
+  <strong>💡 Tip:</strong> Even without calibration, the app uses CSS unit auto-detection. Accuracy is usually sufficient for most devices.
+</div>
+
+<h2>Hidden Titles</h2>
+<p>Reach certain depths to unlock titles. How many are there? Dive deep and find out.</p>
+
+<div class="tip">
+  <strong>💡 Tip:</strong> Something might happen at 77.7m…
+</div>
+
+<h2>Gravity System</h2>
+<ul>
+  <li>No gravity while scrolling — you're free to move.</li>
+  <li>After <strong>2 seconds</strong> of inactivity, gravity gradually pulls your depth back down.</li>
+  <li>The deeper you are, the stronger gravity becomes.</li>
+  <li>When depth returns to 0, the timer and stats reset.</li>
+</ul>
+
+<h2>FAQ</h2>
+
+<h3>Q. Is my data sent to a server?</h3>
+<p>No. All data stays in your browser. See the <a href="/privacy.html">Privacy Policy</a> for details.</p>
+
+<h3>Q. Does it work on mobile?</h3>
+<p>Yes. Latest Chrome or Safari recommended. Touch gestures are fully supported.</p>
+
+<h3>Q. How do I reset my data?</h3>
+<p>Clear site data in your browser settings, or use Developer Tools → Application → Local Storage to delete the relevant keys.</p>
+
+<a class="back" href="/">← Back to Game</a>
+</div>
+
+</div>
+</body>
+</html>
