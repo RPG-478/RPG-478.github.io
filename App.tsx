@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { DepthMeter } from './components/DepthMeter';
+import { CardCalibration } from './components/CardCalibration';
 import { SplitRecord } from './types';
 
 // Constants for physics
@@ -8,9 +9,8 @@ const GRAVITY = 0.8;
 const SCROLL_MULTIPLIER = 1.0; 
 const DEFAULT_LINE_HEIGHT_PX = 16;
 const MAX_VELOCITY = 3000; // Visual normalization only (not a hard cap)
-// Fallback conversion for display if no calibration is available
-const DEFAULT_PX_TO_CM = 2.54 / 96;
-const DEFAULT_SCREEN_HEIGHT_CM = 15;
+// Default: assume 96 CSS px = 1 inch = 2.54 cm → ~37.8 px per cm
+const DEFAULT_PX_PER_CM = 96 / 2.54;
 
 // Milestones for splits (in cm)
 const MILESTONES_CM = [100, 500, 1000, 5000, 10000]; // 1m, 5m, 10m, 50m, 100m
@@ -28,11 +28,14 @@ const App: React.FC = () => {
   const [totalDistance, setTotalDistance] = useState(0); // m
   const [maxAccel, setMaxAccel] = useState(0); // m/s^2
   const [scrollCount, setScrollCount] = useState(0); // 回数
-  const [screenHeightCm, setScreenHeightCm] = useState(DEFAULT_SCREEN_HEIGHT_CM);
   const [viewportHeightPx, setViewportHeightPx] = useState(0);
   const [inertiaEnabled, setInertiaEnabled] = useState(true);
-  const [distanceScale, setDistanceScale] = useState(1);
   const [lineHeightPx, setLineHeightPx] = useState(DEFAULT_LINE_HEIGHT_PX);
+
+  // Calibration system
+  const [autoPxPerCm, setAutoPxPerCm] = useState(DEFAULT_PX_PER_CM);
+  const [calibratedPxPerCm, setCalibratedPxPerCm] = useState<number | null>(null);
+  const [showCalibration, setShowCalibration] = useState(false);
 
   // 速度・加速度計測用
   const lastVelocity = useRef(0);
@@ -52,26 +55,18 @@ const App: React.FC = () => {
   const runStartTimeRef = useRef<number | null>(null);
   const passedMilestonesRef = useRef<Set<number>>(new Set());
 
-  // Load high score
+  // Load persisted settings
   useEffect(() => {
     const saved = localStorage.getItem('immovable_highscore_px');
     if (saved) setHighScore(parseInt(saved, 10));
-  }, []);
-
-  useEffect(() => {
-    const saved = localStorage.getItem('immovable_screen_height_cm');
-    if (saved) setScreenHeightCm(parseFloat(saved));
-  }, []);
-
-  useEffect(() => {
-    const saved = localStorage.getItem('immovable_distance_scale');
-    if (saved) setDistanceScale(parseFloat(saved));
-  }, []);
-
-  useEffect(() => {
-    const saved = localStorage.getItem('immovable_inertia_enabled');
-    if (saved === 'true' || saved === 'false') {
-      setInertiaEnabled(saved === 'true');
+    const savedInertia = localStorage.getItem('immovable_inertia_enabled');
+    if (savedInertia === 'true' || savedInertia === 'false') {
+      setInertiaEnabled(savedInertia === 'true');
+    }
+    const savedCal = localStorage.getItem('immovable_calibrated_px_per_cm');
+    if (savedCal) {
+      const v = parseFloat(savedCal);
+      if (Number.isFinite(v) && v > 0) setCalibratedPxPerCm(v);
     }
   }, []);
 
@@ -79,10 +74,20 @@ const App: React.FC = () => {
     localStorage.setItem('immovable_inertia_enabled', inertiaEnabled ? 'true' : 'false');
   }, [inertiaEnabled]);
 
+  // Auto-detect CSS px per cm using the browser's CSS cm unit
+  // This is approximate (CSS cm != physical cm) but a good starting point
   useEffect(() => {
-    if (!Number.isFinite(distanceScale)) return;
-    localStorage.setItem('immovable_distance_scale', distanceScale.toString());
-  }, [distanceScale]);
+    const el = document.createElement('div');
+    el.style.width = '10cm';
+    el.style.position = 'absolute';
+    el.style.visibility = 'hidden';
+    document.body.appendChild(el);
+    const pxPer10Cm = el.offsetWidth;
+    document.body.removeChild(el);
+    if (pxPer10Cm > 0) {
+      setAutoPxPerCm(pxPer10Cm / 10);
+    }
+  }, []);
 
   useEffect(() => {
     const updateViewport = () => setViewportHeightPx(window.innerHeight || 0);
@@ -102,22 +107,22 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // pxToCm: use calibrated value if available, else auto-detected CSS cm
   const pxToCm = useMemo(() => {
-    if (viewportHeightPx > 0) return (screenHeightCm / viewportHeightPx) * distanceScale;
-    return DEFAULT_PX_TO_CM;
-  }, [screenHeightCm, viewportHeightPx, distanceScale]);
+    const pxPerCm = calibratedPxPerCm ?? autoPxPerCm;
+    return 1 / pxPerCm;
+  }, [calibratedPxPerCm, autoPxPerCm]);
 
-  const handleScreenHeightChange = useCallback((value: number) => {
-    if (!Number.isFinite(value)) return;
-    const clamped = Math.min(Math.max(value, 5), 50);
-    setScreenHeightCm(clamped);
-    localStorage.setItem('immovable_screen_height_cm', clamped.toString());
+  // Calibration handlers
+  const handleCalibration = useCallback((pxPerCm: number) => {
+    setCalibratedPxPerCm(pxPerCm);
+    localStorage.setItem('immovable_calibrated_px_per_cm', pxPerCm.toString());
+    setShowCalibration(false);
   }, []);
 
-  const handleDistanceScaleChange = useCallback((value: number) => {
-    if (!Number.isFinite(value)) return;
-    const clamped = Math.min(Math.max(value, 0.2), 5);
-    setDistanceScale(clamped);
+  const handleResetCalibration = useCallback(() => {
+    setCalibratedPxPerCm(null);
+    localStorage.removeItem('immovable_calibrated_px_per_cm');
   }, []);
 
   // Persistent loop for physics (Gravity & Friction)
@@ -269,11 +274,12 @@ const App: React.FC = () => {
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       const delta = normalizeWheelDelta(e);
-      const applied = delta * SCROLL_MULTIPLIER * 0.15;
       if (inertiaEnabled) {
-        velocityRef.current += applied;
+        // Game mode: scaled down for physics feel
+        velocityRef.current += delta * SCROLL_MULTIPLIER * 0.15;
       } else {
-        inputDeltaRef.current += applied;
+        // Direct measurement: full pixel delta
+        inputDeltaRef.current += delta;
       }
     };
 
@@ -286,11 +292,12 @@ const App: React.FC = () => {
         const touchY = e.touches[0].clientY;
         const delta = touchStartY - touchY;
         touchStartY = touchY;
-        const applied = delta * SCROLL_MULTIPLIER * 0.25;
         if (inertiaEnabled) {
-          velocityRef.current += applied;
+          // Game mode: scaled for physics feel
+          velocityRef.current += delta * SCROLL_MULTIPLIER * 0.25;
         } else {
-          inputDeltaRef.current += applied;
+          // Direct measurement: 1:1 physical finger mapping
+          inputDeltaRef.current += delta;
         }
     };
 
@@ -387,6 +394,15 @@ const App: React.FC = () => {
             }}
         />
 
+      {/* Card Calibration Overlay */}
+      {showCalibration && (
+        <CardCalibration
+          initialPxPerCm={autoPxPerCm}
+          onCalibrate={handleCalibration}
+          onCancel={() => setShowCalibration(false)}
+        />
+      )}
+
       <DepthMeter 
         depth={depth} 
         velocity={velocity}
@@ -399,12 +415,11 @@ const App: React.FC = () => {
         maxAccel={maxAccel}
         scrollCount={scrollCount}
         pxToCm={pxToCm}
-        screenHeightCm={screenHeightCm}
-        onScreenHeightCmChange={handleScreenHeightChange}
         inertiaEnabled={inertiaEnabled}
         onInertiaEnabledChange={setInertiaEnabled}
-        distanceScale={distanceScale}
-        onDistanceScaleChange={handleDistanceScaleChange}
+        isCalibrated={calibratedPxPerCm !== null}
+        onCalibrateClick={() => setShowCalibration(true)}
+        onResetCalibration={handleResetCalibration}
       />
 
       {/* Main Content Container */}

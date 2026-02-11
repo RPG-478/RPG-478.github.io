@@ -13,12 +13,11 @@ interface DepthMeterProps {
   maxAccel: number; // m/s^2
   scrollCount: number;
   pxToCm: number;
-  screenHeightCm: number;
-  onScreenHeightCmChange: (value: number) => void;
   inertiaEnabled: boolean;
   onInertiaEnabledChange: (value: boolean) => void;
-  distanceScale: number;
-  onDistanceScaleChange: (value: number) => void;
+  isCalibrated: boolean;
+  onCalibrateClick: () => void;
+  onResetCalibration: () => void;
 }
 
 const formatDistance = (pixels: number, pxToCm: number): string => {
@@ -68,12 +67,11 @@ export const DepthMeter: React.FC<DepthMeterProps> = ({
   maxAccel,
   scrollCount,
   pxToCm,
-  screenHeightCm,
-  onScreenHeightCmChange,
   inertiaEnabled,
   onInertiaEnabledChange,
-  distanceScale,
-  onDistanceScaleChange
+  isCalibrated,
+  onCalibrateClick,
+  onResetCalibration
 }) => {
   return (
     <>
@@ -118,36 +116,26 @@ export const DepthMeter: React.FC<DepthMeterProps> = ({
         </div>
 
         <div className="mt-2 bg-black/70 px-3 py-2 rounded-lg border border-gray-700 text-xs min-w-[160px] pointer-events-auto flex flex-col gap-2">
+          {/* Calibration status & button */}
           <div className="flex items-center justify-between gap-2">
-            <span>SCREEN H</span>
-            <div className="flex items-center gap-1">
-              <input
-                className="w-16 bg-black/70 border border-gray-600 rounded px-2 py-1 text-right"
-                type="number"
-                min={5}
-                max={50}
-                step={0.5}
-                value={Number.isFinite(screenHeightCm) ? screenHeightCm : 15}
-                onChange={(e) => onScreenHeightCmChange(parseFloat(e.target.value))}
-              />
-              <span>cm</span>
-            </div>
+            <span className={isCalibrated ? 'text-green-400' : 'text-gray-500'}>
+              {isCalibrated ? '✓ 補正済み' : '自動推定'}
+            </span>
+            {isCalibrated ? (
+              <button
+                className="text-[10px] text-red-400 border border-red-800 rounded px-2 py-0.5 active:bg-red-900/40"
+                onClick={onResetCalibration}
+              >
+                RESET
+              </button>
+            ) : null}
           </div>
-          <div className="flex items-center justify-between gap-2">
-            <span>DIST SCALE</span>
-            <div className="flex items-center gap-1">
-              <input
-                className="w-16 bg-black/70 border border-gray-600 rounded px-2 py-1 text-right"
-                type="number"
-                min={0.2}
-                max={5}
-                step={0.1}
-                value={Number.isFinite(distanceScale) ? distanceScale : 1}
-                onChange={(e) => onDistanceScaleChange(parseFloat(e.target.value))}
-              />
-              <span>x</span>
-            </div>
-          </div>
+          <button
+            className="w-full py-1.5 bg-yellow-600/80 text-black rounded font-bold text-xs active:bg-yellow-500 transition-colors"
+            onClick={onCalibrateClick}
+          >
+            📐 CALIBRATE
+          </button>
           <label className="flex items-center justify-between gap-2">
             <span>INERTIA</span>
             <input
