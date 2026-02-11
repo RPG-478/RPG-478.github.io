@@ -6,6 +6,7 @@ import { SplitRecord } from './types';
 const FRICTION = 0.96; 
 const GRAVITY = 0.8; 
 const SCROLL_MULTIPLIER = 1.0; 
+const DEFAULT_LINE_HEIGHT_PX = 16;
 const MAX_VELOCITY = 3000; // Visual normalization only (not a hard cap)
 // Fallback conversion for display if no calibration is available
 const DEFAULT_PX_TO_CM = 2.54 / 96;
@@ -31,6 +32,7 @@ const App: React.FC = () => {
   const [viewportHeightPx, setViewportHeightPx] = useState(0);
   const [inertiaEnabled, setInertiaEnabled] = useState(true);
   const [distanceScale, setDistanceScale] = useState(1);
+  const [lineHeightPx, setLineHeightPx] = useState(DEFAULT_LINE_HEIGHT_PX);
 
   // 速度・加速度計測用
   const lastVelocity = useRef(0);
@@ -87,6 +89,17 @@ const App: React.FC = () => {
     updateViewport();
     window.addEventListener('resize', updateViewport);
     return () => window.removeEventListener('resize', updateViewport);
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const computed = window.getComputedStyle(root);
+    const parsed = parseFloat(computed.lineHeight);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      setLineHeightPx(parsed);
+    } else {
+      setLineHeightPx(DEFAULT_LINE_HEIGHT_PX);
+    }
   }, []);
 
   const pxToCm = useMemo(() => {
@@ -247,9 +260,15 @@ const App: React.FC = () => {
 
   // Input Handling
   useEffect(() => {
+    const normalizeWheelDelta = (e: WheelEvent) => {
+      if (e.deltaMode === WheelEvent.DOM_DELTA_LINE) return e.deltaY * lineHeightPx;
+      if (e.deltaMode === WheelEvent.DOM_DELTA_PAGE) return e.deltaY * (viewportHeightPx || window.innerHeight || 0);
+      return e.deltaY;
+    };
+
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const delta = e.deltaY;
+      const delta = normalizeWheelDelta(e);
       const applied = delta * SCROLL_MULTIPLIER * 0.15;
       if (inertiaEnabled) {
         velocityRef.current += applied;
@@ -284,7 +303,7 @@ const App: React.FC = () => {
       window.removeEventListener('touchstart', onTouchStart);
       window.removeEventListener('touchmove', onTouchMove);
     };
-  }, [inertiaEnabled]);
+  }, [inertiaEnabled, lineHeightPx, viewportHeightPx]);
 
   // Visual Effects Calculations
   const normVelocity = Math.min(velocity / MAX_VELOCITY, 1);
