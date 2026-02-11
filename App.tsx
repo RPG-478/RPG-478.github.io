@@ -520,17 +520,19 @@ const App: React.FC = () => {
         style={{ opacity: Math.max(0, (normVelocity - 0.8) * 5) }}
       />
 
-      <div className="absolute bottom-8 text-gray-600 font-mono text-xs animate-bounce opacity-50">
-         ▼ SCROLL TO PROVE EXISTENCE ▼
+      {/* Footer Links */}
+      <div className="absolute bottom-4 left-0 right-0 z-30 flex justify-center pointer-events-auto">
+        <div className="flex items-center gap-3 rounded-full border border-gray-800 bg-black/70 px-3 py-1 text-xs font-mono text-gray-300 shadow-[0_0_12px_rgba(0,0,0,0.6)]">
+          <a href="/guide.html" target="_blank" rel="noopener" className="hover:text-white transition-colors">GUIDE</a>
+          <span className="text-gray-600">|</span>
+          <a href="/terms.html" target="_blank" rel="noopener" className="hover:text-white transition-colors">TERMS</a>
+          <span className="text-gray-600">|</span>
+          <a href="/privacy.html" target="_blank" rel="noopener" className="hover:text-white transition-colors">PRIVACY</a>
+        </div>
       </div>
 
-      {/* Footer Links */}
-      <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-3 text-[10px] font-mono text-gray-700 z-20 pointer-events-auto">
-        <a href="/guide.html" target="_blank" rel="noopener" className="hover:text-gray-400 transition-colors">GUIDE</a>
-        <span>|</span>
-        <a href="/terms.html" target="_blank" rel="noopener" className="hover:text-gray-400 transition-colors">TERMS</a>
-        <span>|</span>
-        <a href="/privacy.html" target="_blank" rel="noopener" className="hover:text-gray-400 transition-colors">PRIVACY</a>
+      <div className="absolute bottom-12 text-gray-500 font-mono text-xs animate-bounce opacity-60">
+         ▼ SCROLL TO PROVE EXISTENCE ▼
       </div>
       
     </div>
