@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { ACHIEVEMENTS } from '../data/achievements';
 
 // ===== Sparkle SVG path (4-pointed star) =====
 const SPARKLE_PATH =
@@ -177,29 +178,6 @@ export const TitleUnlockOverlay: React.FC<TitleUnlockOverlayProps> = ({ title })
 };
 
 // ===== TitleGallery =====
-// All possible titles in order
-interface TitleDef {
-  key: string;
-  label: string;
-  requirement: string;
-  requirementEn: string;
-}
-
-const ALL_TITLES: TitleDef[] = [
-  { key: '77.7', label: '77.7m通過', requirement: '77.7mに到達', requirementEn: 'Reach 77.7m' },
-  { key: '100', label: '100m通過', requirement: '100mに到達', requirementEn: 'Reach 100m' },
-  { key: '500', label: '500m通過', requirement: '500mに到達', requirementEn: 'Reach 500m' },
-  { key: 'k1', label: '1km通過', requirement: '1kmに到達', requirementEn: 'Reach 1km' },
-  { key: 'k2', label: '2km通過', requirement: '2kmに到達', requirementEn: 'Reach 2km' },
-  { key: 'k3', label: '3km通過', requirement: '3kmに到達', requirementEn: 'Reach 3km' },
-  { key: 'k4', label: '4km通過', requirement: '4kmに到達', requirementEn: 'Reach 4km' },
-  { key: 'k5', label: '5km通過', requirement: '5kmに到達', requirementEn: 'Reach 5km' },
-  { key: 'k6', label: '6km通過', requirement: '6kmに到達', requirementEn: 'Reach 6km' },
-  { key: 'k7', label: '7km通過', requirement: '7kmに到達', requirementEn: 'Reach 7km' },
-  { key: 'k8', label: '8km通過', requirement: '8kmに到達', requirementEn: 'Reach 8km' },
-  { key: 'k9', label: '9km通過', requirement: '9kmに到達', requirementEn: 'Reach 9km' },
-  { key: '10000', label: '10km通過', requirement: '10kmに到達', requirementEn: 'Reach 10km' },
-];
 
 interface TitleGalleryProps {
   unlockedKeys: Set<string>;
@@ -208,7 +186,7 @@ interface TitleGalleryProps {
 
 export const TitleGallery: React.FC<TitleGalleryProps> = ({ unlockedKeys, onClose }) => {
   const [closing, setClosing] = useState(false);
-  const unlockedCount = ALL_TITLES.filter((t) => unlockedKeys.has(t.key)).length;
+  const unlockedCount = ACHIEVEMENTS.filter((t) => unlockedKeys.has(t.key)).length;
 
   const handleClose = useCallback(() => {
     setClosing(true);
@@ -240,7 +218,7 @@ export const TitleGallery: React.FC<TitleGalleryProps> = ({ unlockedKeys, onClos
           <div>
             <h2 className="text-lg font-bold text-yellow-400 font-mono tracking-wide">🏆 称号一覧</h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              {unlockedCount} / {ALL_TITLES.length} 解放済み
+              {unlockedCount} / {ACHIEVEMENTS.length} 解放済み
             </p>
           </div>
           <button
@@ -253,7 +231,7 @@ export const TitleGallery: React.FC<TitleGalleryProps> = ({ unlockedKeys, onClos
 
         {/* Title list */}
         <div className="flex flex-col gap-2">
-          {ALL_TITLES.map((t) => {
+          {ACHIEVEMENTS.map((t) => {
             const unlocked = unlockedKeys.has(t.key);
             return (
               <div
@@ -297,14 +275,14 @@ export const TitleGallery: React.FC<TitleGalleryProps> = ({ unlockedKeys, onClos
             <div
               className="h-full rounded-full transition-all duration-500"
               style={{
-                width: `${(unlockedCount / ALL_TITLES.length) * 100}%`,
+                  width: `${(unlockedCount / ACHIEVEMENTS.length) * 100}%`,
                 background: 'linear-gradient(90deg, #FFC700, #FFE066)',
                 boxShadow: '0 0 8px rgba(255, 199, 0, 0.4)',
               }}
             />
           </div>
           <p className="text-[10px] text-gray-600 text-center mt-1">
-            COMPLETION: {((unlockedCount / ALL_TITLES.length) * 100).toFixed(0)}%
+              COMPLETION: {((unlockedCount / ACHIEVEMENTS.length) * 100).toFixed(0)}%
           </p>
         </div>
       </div>

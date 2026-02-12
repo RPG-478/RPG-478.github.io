@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { DepthMeter } from './components/DepthMeter';
 import { CardCalibration } from './components/CardCalibration';
 import { TitleUnlockOverlay, TitleGallery } from './components/TitleUnlockOverlay';
+import { ACHIEVEMENTS } from './data/achievements';
 import { SplitRecord } from './types';
 
 // Constants for physics
@@ -54,7 +55,6 @@ const App: React.FC = () => {
   const lastScrollDir = useRef(0);
   const titleTimeoutRef = useRef<number | null>(null);
   const unlockedTitlesRef = useRef<Set<string>>(new Set());
-  const lastThousandRef = useRef(0);
   const lastMoveTimeRef = useRef<number | null>(null);
 
   // Refs for physics loop to avoid closure staleness
@@ -155,19 +155,11 @@ const App: React.FC = () => {
       showTitleToast(label);
     };
 
-    if (currentM >= 77.7) unlockOnce('77.7', '77.7m通過');
-    if (currentM >= 100) unlockOnce('100', '100m通過');
-    if (currentM >= 500) unlockOnce('500', '500m通過');
-    if (currentM >= 10000) unlockOnce('10000', '10km通過');
-
-    const thousand = Math.floor(currentM / 1000);
-    if (thousand > lastThousandRef.current) {
-      for (let k = lastThousandRef.current + 1; k <= thousand; k += 1) {
-        if (k === 10) continue;
-        unlockOnce(`k${k}`, `${k}km通過`);
+    ACHIEVEMENTS.forEach((achievement) => {
+      if (currentM >= achievement.meters) {
+        unlockOnce(achievement.key, achievement.label);
       }
-      lastThousandRef.current = thousand;
-    }
+    });
   }, [showTitleToast]);
 
   useEffect(() => {
@@ -263,7 +255,6 @@ const App: React.FC = () => {
           setTitleToast(null);
           unlockedTitlesRef.current.clear();
           setUnlockedTitles(new Set());
-          lastThousandRef.current = 0;
           lastMoveTimeRef.current = null;
         }
     } else {
