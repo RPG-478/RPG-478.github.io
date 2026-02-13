@@ -513,6 +513,8 @@ const App: React.FC = () => {
 
   // Input Handling
   useEffect(() => {
+    const isOverlayOpen = showTitleGallery || showCalibration || pendingResume !== null;
+
     const normalizeWheelDelta = (e: WheelEvent) => {
       if (e.deltaMode === WheelEvent.DOM_DELTA_LINE) return e.deltaY * lineHeightPx;
       if (e.deltaMode === WheelEvent.DOM_DELTA_PAGE) return e.deltaY * (viewportHeightPx || window.innerHeight || 0);
@@ -520,6 +522,7 @@ const App: React.FC = () => {
     };
 
     const handleWheel = (e: WheelEvent) => {
+      if (isOverlayOpen) return;
       e.preventDefault();
       const delta = normalizeWheelDelta(e);
       if (inertiaEnabled) {
@@ -533,9 +536,11 @@ const App: React.FC = () => {
 
     let touchStartY = 0;
     const onTouchStart = (e: TouchEvent) => {
+      if (isOverlayOpen) return;
         touchStartY = e.touches[0].clientY;
     };
     const onTouchMove = (e: TouchEvent) => {
+      if (isOverlayOpen) return;
         e.preventDefault();
         const touchY = e.touches[0].clientY;
         const delta = touchStartY - touchY;
@@ -558,7 +563,7 @@ const App: React.FC = () => {
       window.removeEventListener('touchstart', onTouchStart);
       window.removeEventListener('touchmove', onTouchMove);
     };
-  }, [inertiaEnabled, lineHeightPx, viewportHeightPx]);
+  }, [inertiaEnabled, lineHeightPx, viewportHeightPx, showTitleGallery, showCalibration, pendingResume]);
 
   // Visual Effects Calculations
   const normVelocity = Math.min(velocity / MAX_VELOCITY, 1);
