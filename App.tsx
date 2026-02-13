@@ -20,6 +20,24 @@ const DEFAULT_PX_PER_CM = 96 / 2.54;
 
 // Milestones for splits (in cm)
 const MILESTONES_CM = [100, 500, 1000, 5000, 10000]; // 1m, 5m, 10m, 50m, 100m
+const UNLOCKED_TITLES_STORAGE_KEY = 'immovable_unlocked_titles_v1';
+const RUN_STATE_STORAGE_KEY = 'immovable_run_state_v1';
+
+interface PersistedRunState {
+  depth: number;
+  velocity: number;
+  runTime: number;
+  splits: SplitRecord[];
+  passedMilestones: number[];
+  aveSpeed: number;
+  maxSpeed: number;
+  totalDistance: number;
+  maxAccel: number;
+  currentSpeedMps: number;
+  scrollCount: number;
+  unlockedTitles: string[];
+  savedAt: number;
+}
 
 const App: React.FC = () => {
   // Game State
@@ -46,6 +64,7 @@ const App: React.FC = () => {
   const [titleToast, setTitleToast] = useState<string | null>(null);
   const [showTitleGallery, setShowTitleGallery] = useState(false);
   const [unlockedTitles, setUnlockedTitles] = useState<Set<string>>(new Set());
+  const [pendingResume, setPendingResume] = useState<PersistedRunState | null>(null);
 
   // 速度・加速度計測用
   const lastVelocity = useRef(0);
@@ -56,6 +75,15 @@ const App: React.FC = () => {
   const titleTimeoutRef = useRef<number | null>(null);
   const unlockedTitlesRef = useRef<Set<string>>(new Set());
   const lastMoveTimeRef = useRef<number | null>(null);
+  const runTimeRef = useRef(0);
+  const splitsRef = useRef<SplitRecord[]>([]);
+  const aveSpeedRef = useRef(0);
+  const maxSpeedRef = useRef(0);
+  const maxAccelRef = useRef(0);
+  const totalDistanceStatRef = useRef(0);
+  const currentSpeedMpsRef = useRef(0);
+  const scrollCountRef = useRef(0);
+  const lastRunPersistAtRef = useRef(0);
 
   // Refs for physics loop to avoid closure staleness
   const depthRef = useRef(0);
@@ -78,6 +106,32 @@ const App: React.FC = () => {
     if (savedCal) {
       const v = parseFloat(savedCal);
       if (Number.isFinite(v) && v > 0) setCalibratedPxPerCm(v);
+    }
+
+    try {
+      const savedTitles = localStorage.getItem(UNLOCKED_TITLES_STORAGE_KEY);
+      if (savedTitles) {
+        const parsed = JSON.parse(savedTitles);
+        if (Array.isArray(parsed)) {
+          const restored = new Set(parsed.filter((item) => typeof item === 'string'));
+          unlockedTitlesRef.current = restored;
+          setUnlockedTitles(new Set(restored));
+        }
+      }
+    } catch {
+      localStorage.removeItem(UNLOCKED_TITLES_STORAGE_KEY);
+    }
+
+    try {
+      const savedRunState = localStorage.getItem(RUN_STATE_STORAGE_KEY);
+      if (savedRunState) {
+        const parsed = JSON.parse(savedRunState) as PersistedRunState;
+        if (parsed && Number.isFinite(parsed.depth) && parsed.depth > 0) {
+          setPendingResume(parsed);
+        }
+      }
+    } catch {
+      localStorage.removeItem(RUN_STATE_STORAGE_KEY);
     }
   }, []);
 
@@ -147,11 +201,101 @@ const App: React.FC = () => {
     }, 3600);
   }, []);
 
+  const persistRunState = useCallback(() => {
+    if (depthRef.current <= 0) return;
+
+    const payload: PersistedRunState = {
+      depth: depthRef.current,
+      velocity: velocityRef.current,
+      runTime: runTimeRef.current,
+      splits: splitsRef.current,
+      passedMilestones: Array.from(passedMilestonesRef.current),
+      aveSpeed: aveSpeedRef.current,
+      maxSpeed: maxSpeedRef.current,
+      totalDistance: totalDistanceStatRef.current,
+      maxAccel: maxAccelRef.current,
+      currentSpeedMps: currentSpeedMpsRef.current,
+      scrollCount: scrollCountRef.current,
+      unlockedTitles: Array.from(unlockedTitlesRef.current),
+      savedAt: Date.now(),
+    };
+
+    try {
+      localStorage.setItem(RUN_STATE_STORAGE_KEY, JSON.stringify(payload));
+    } catch {
+      // ignore quota/storage errors
+    }
+  }, []);
+
+  const clearRunState = useCallback(() => {
+    localStorage.removeItem(RUN_STATE_STORAGE_KEY);
+  }, []);
+
+  const handleResumeRun = useCallback(() => {
+    if (!pendingResume) return;
+
+    const now = performance.now();
+
+    depthRef.current = Math.max(0, pendingResume.depth);
+    velocityRef.current = pendingResume.velocity;
+    runStartTimeRef.current = now - Math.max(0, pendingResume.runTime);
+    lastTimeRef.current = null;
+    lastMoveTimeRef.current = now;
+
+    const restoredSplits = Array.isArray(pendingResume.splits) ? pendingResume.splits : [];
+    const restoredMilestones = Array.isArray(pendingResume.passedMilestones) ? pendingResume.passedMilestones : [];
+    const restoredTitles = Array.isArray(pendingResume.unlockedTitles)
+      ? pendingResume.unlockedTitles.filter((key) => typeof key === 'string')
+      : [];
+
+    passedMilestonesRef.current = new Set(restoredMilestones);
+    splitsRef.current = restoredSplits;
+    runTimeRef.current = Math.max(0, pendingResume.runTime);
+    aveSpeedRef.current = Math.max(0, pendingResume.aveSpeed || 0);
+    maxSpeedRef.current = Math.max(0, pendingResume.maxSpeed || 0);
+    totalDistanceRef.current = Math.max(0, pendingResume.totalDistance || 0);
+    totalDistanceStatRef.current = Math.max(0, pendingResume.totalDistance || 0);
+    maxAccelRef.current = Math.max(0, pendingResume.maxAccel || 0);
+    currentSpeedMpsRef.current = Math.max(0, pendingResume.currentSpeedMps || 0);
+    scrollCountRef.current = Math.max(0, pendingResume.scrollCount || 0);
+    unlockedTitlesRef.current = new Set(restoredTitles);
+
+    setDepth(depthRef.current);
+    setVelocity(Math.abs(velocityRef.current));
+    setRunTime(runTimeRef.current);
+    setSplits(restoredSplits);
+    setAveSpeed(aveSpeedRef.current);
+    setMaxSpeed(maxSpeedRef.current);
+    setTotalDistance(totalDistanceStatRef.current);
+    setMaxAccel(maxAccelRef.current);
+    setCurrentSpeedMps(currentSpeedMpsRef.current);
+    setScrollCount(scrollCountRef.current);
+    setUnlockedTitles(new Set(unlockedTitlesRef.current));
+
+    try {
+      localStorage.setItem(UNLOCKED_TITLES_STORAGE_KEY, JSON.stringify(Array.from(unlockedTitlesRef.current)));
+    } catch {
+      // ignore
+    }
+
+    setPendingResume(null);
+  }, [pendingResume]);
+
+  const handleStartFresh = useCallback(() => {
+    clearRunState();
+    setPendingResume(null);
+  }, [clearRunState]);
+
   const checkTitleUnlocks = useCallback((currentM: number) => {
     const unlockOnce = (key: string, label: string) => {
       if (unlockedTitlesRef.current.has(key)) return;
       unlockedTitlesRef.current.add(key);
       setUnlockedTitles(new Set(unlockedTitlesRef.current));
+      try {
+        localStorage.setItem(UNLOCKED_TITLES_STORAGE_KEY, JSON.stringify(Array.from(unlockedTitlesRef.current)));
+      } catch {
+        // ignore quota/storage errors
+      }
       showTitleToast(label);
     };
 
@@ -186,7 +330,11 @@ const App: React.FC = () => {
     // スクロール回数（方向変化でカウント）
     const dir = Math.sign(velocityRef.current);
     if (dir !== 0 && dir !== lastScrollDir.current) {
-      setScrollCount(c => c + 1);
+      setScrollCount(c => {
+        const next = c + 1;
+        scrollCountRef.current = next;
+        return next;
+      });
       lastScrollDir.current = dir;
     }
 
@@ -243,18 +391,25 @@ const App: React.FC = () => {
         // Reset Timer if grounded
         if (runStartTimeRef.current !== null) {
             runStartTimeRef.current = null;
+            runTimeRef.current = 0;
             setRunTime(0);
+            splitsRef.current = [];
             setSplits([]);
             passedMilestonesRef.current.clear();
           totalDistanceRef.current = 0;
+          totalDistanceStatRef.current = 0;
+          aveSpeedRef.current = 0;
+          maxSpeedRef.current = 0;
+          maxAccelRef.current = 0;
+          currentSpeedMpsRef.current = 0;
+          scrollCountRef.current = 0;
           setAveSpeed(0);
           setMaxSpeed(0);
           setTotalDistance(0);
           setMaxAccel(0);
           setCurrentSpeedMps(0);
           setTitleToast(null);
-          unlockedTitlesRef.current.clear();
-          setUnlockedTitles(new Set());
+          clearRunState();
           lastMoveTimeRef.current = null;
         }
     } else {
@@ -262,8 +417,14 @@ const App: React.FC = () => {
         if (runStartTimeRef.current === null) {
             runStartTimeRef.current = time;
             passedMilestonesRef.current.clear();
+            splitsRef.current = [];
             setSplits([]);
           totalDistanceRef.current = 0;
+          totalDistanceStatRef.current = 0;
+          runTimeRef.current = 0;
+          aveSpeedRef.current = 0;
+          maxSpeedRef.current = 0;
+          maxAccelRef.current = 0;
           setAveSpeed(0);
           setMaxSpeed(0);
           setTotalDistance(0);
@@ -275,6 +436,7 @@ const App: React.FC = () => {
     let currentRunTime = 0;
     if (runStartTimeRef.current !== null) {
         currentRunTime = time - runStartTimeRef.current;
+      runTimeRef.current = currentRunTime;
         setRunTime(currentRunTime);
 
         // Check Milestones
@@ -285,7 +447,11 @@ const App: React.FC = () => {
         MILESTONES_CM.forEach(milestone => {
             if (currentCm >= milestone && !passedMilestonesRef.current.has(milestone)) {
                 passedMilestonesRef.current.add(milestone);
-                setSplits(prev => [...prev, { distanceCm: milestone, timeMs: currentRunTime }].sort((a,b) => b.distanceCm - a.distanceCm));
+                setSplits(prev => {
+                  const next = [...prev, { distanceCm: milestone, timeMs: currentRunTime }].sort((a,b) => b.distanceCm - a.distanceCm);
+                  splitsRef.current = next;
+                  return next;
+                });
             }
         });
     }
@@ -303,14 +469,30 @@ const App: React.FC = () => {
     const currentAccelMps2 = (accelVal * pxToCm) / 100;
 
     setCurrentSpeedMps(currentSpeedMps);
+    currentSpeedMpsRef.current = currentSpeedMps;
     setTotalDistance(totalDistanceRef.current);
-    setMaxSpeed(prev => Math.max(prev, currentSpeedMps));
-    setMaxAccel(prev => Math.max(prev, currentAccelMps2));
+    totalDistanceStatRef.current = totalDistanceRef.current;
+
+    const nextMaxSpeed = Math.max(maxSpeedRef.current, currentSpeedMps);
+    maxSpeedRef.current = nextMaxSpeed;
+    setMaxSpeed(nextMaxSpeed);
+
+    const nextMaxAccel = Math.max(maxAccelRef.current, currentAccelMps2);
+    maxAccelRef.current = nextMaxAccel;
+    setMaxAccel(nextMaxAccel);
 
     if (runStartTimeRef.current && currentRunTime > 0) {
-      setAveSpeed(totalDistanceRef.current / (currentRunTime / 1000));
+      const averageSpeed = totalDistanceRef.current / (currentRunTime / 1000);
+      aveSpeedRef.current = averageSpeed;
+      setAveSpeed(averageSpeed);
     } else {
+      aveSpeedRef.current = 0;
       setAveSpeed(0);
+    }
+
+    if (depthRef.current > 0 && time - lastRunPersistAtRef.current >= 500) {
+      lastRunPersistAtRef.current = time;
+      persistRunState();
     }
 
     // Check High Score
@@ -320,7 +502,7 @@ const App: React.FC = () => {
     }
 
     requestRef.current = requestAnimationFrame(animate);
-  }, [inertiaEnabled, pxToCm, checkTitleUnlocks]);
+  }, [inertiaEnabled, pxToCm, checkTitleUnlocks, clearRunState, persistRunState]);
 
   useEffect(() => {
     requestRef.current = requestAnimationFrame(animate);
@@ -478,6 +660,31 @@ const App: React.FC = () => {
           unlockedKeys={unlockedTitles}
           onClose={() => setShowTitleGallery(false)}
         />
+      )}
+
+      {pendingResume && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 backdrop-blur-sm pointer-events-auto">
+          <div className="w-[90vw] max-w-md rounded-xl border border-gray-700 bg-gray-950/95 p-5 shadow-[0_0_30px_rgba(0,0,0,0.6)]">
+            <h2 className="text-lg font-bold text-yellow-400 font-mono">途中セーブを検出</h2>
+            <p className="mt-2 text-sm text-gray-300">
+              前回の記録（{((pendingResume.depth * pxToCm) / 100).toFixed(2)} m / {Math.floor(pendingResume.runTime / 1000)}s）から再開できます。
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                className="flex-1 rounded bg-yellow-500 px-3 py-2 text-sm font-bold text-black hover:bg-yellow-400 transition-colors"
+                onClick={handleResumeRun}
+              >
+                再開する
+              </button>
+              <button
+                className="flex-1 rounded border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800 transition-colors"
+                onClick={handleStartFresh}
+              >
+                最初から
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <DepthMeter 
